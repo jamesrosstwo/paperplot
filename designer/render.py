@@ -881,12 +881,54 @@ def _prepare(spec: dict):
     return spec
 
 
+def _apply_hidden(data: dict, style: dict, warns: list):
+    """(data, style) without style.hidden_arms / hidden_levels. Colors are fixed before anything is dropped, so a
+    palette keeps giving every remaining arm the color it has with everything shown."""
+    ha = set(style.get("hidden_arms") or [])
+    hl = set(style.get("hidden_levels") or [])
+    if not ha and not hl:
+        return data, style
+    data = copy.deepcopy(data)
+    style = dict(style)
+    names = [a["name"] for a in data["arms"]]
+    all_levels = set(data.get("levels") or []) | {l for p in data.get("panels") or [] for l in p.get("levels") or []}
+    for n in sorted(ha - set(names)):
+        warns.append(f"hidden_arms: no arm {n!r}")
+    for n in sorted(hl - all_levels):
+        warns.append(f"hidden_levels: no level {n!r}")
+    pal = style.get("palette")
+    colors = _spec.palettes(style["theme"]).get(pal) if pal else None
+    if colors:                                       # pin palette colors by the full arm list
+        for i, a in enumerate(data["arms"]):
+            a["color"] = colors[i % len(colors)]
+        for p in data.get("panels") or []:
+            for i, a in enumerate(p["arms"]):
+                a["color"] = colors[i % len(colors)]
+        style["palette"] = None
+
+    def drop_levels(levels, arms):
+        keep = [j for j, l in enumerate(levels) if l not in hl]
+        return [levels[j] for j in keep], [dict(a, counts=[a["counts"][j] for j in keep]) for a in arms]
+
+    data["arms"] = [a for a in data["arms"] if a["name"] not in ha]
+    if data.get("panels"):
+        for p in data["panels"]:
+            p["levels"], p["arms"] = drop_levels(p["levels"], [a for a in p["arms"] if a["name"] not in ha])
+        data["levels"] = [l for l in data.get("levels") or [] if l not in hl]
+    else:
+        data["levels"], data["arms"] = drop_levels(data["levels"], data["arms"])
+    if style.get("level_colors"):
+        style["level_colors"] = {k: v for k, v in style["level_colors"].items() if k not in hl}
+    return data, style
+
+
 def _draw(spec):
     """(fig, stats, warnings) for a prepared spec. Caller holds _LOCK and closes fig."""
     warns: list[str] = []
     data = resolve_data(spec)
     warns.extend(data.get("warnings") or [])
-    fig, stats = RENDERERS[spec["kind"]](spec, spec["style"], data, warns)
+    data, style = _apply_hidden(data, spec["style"], warns)
+    fig, stats = RENDERERS[spec["kind"]](spec, style, data, warns)
     return fig, stats, list(dict.fromkeys(warns))
 
 

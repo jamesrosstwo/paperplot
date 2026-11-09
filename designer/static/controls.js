@@ -144,7 +144,7 @@ export class ControlPanel {
 
   /** Redraw the editors that list the spec's arms / levels (after a data edit). */
   refreshData() {
-    for (const key of ['arm_order', 'level_colors']) { const r = this.rows.get(key); if (r) r.set(this.style[key]); }
+    for (const key of ['arm_order', 'level_colors', 'hidden_arms', 'hidden_levels']) { const r = this.rows.get(key); if (r) r.set(this.style[key]); }
   }
 
   /**
@@ -270,6 +270,9 @@ export class ControlPanel {
     } else if (t === 'json' && key === 'arm_order') {
       row.classList.add('wide');
       api = this._armOrderEditor(c, inWrap, (v) => { lastNonNull = v; emit(v); });
+    } else if (t === 'json' && (key === 'hidden_arms' || key === 'hidden_levels')) {
+      row.classList.add('wide');
+      api = this._shownEditor(key === 'hidden_arms' ? 'arms' : 'levels', inWrap, (v) => { lastNonNull = v; emit(v); });
     } else if (t === 'json' && key === 'level_colors') {
       row.classList.add('wide');
       api = this._levelColorsEditor(c, inWrap, (v) => { lastNonNull = v; emit(v); });
@@ -325,6 +328,37 @@ export class ControlPanel {
     set(this.style[key]);
     this._mark(key);
     return row;
+  }
+
+  /** style.hidden_arms / hidden_levels as a checklist of the spec's names: ticked = shown. Emits the hidden names. */
+  _shownEditor(what, inWrap, emit) {
+    let cur = [];
+    const arms = what === 'arms';
+    const list = h('div.ao-list');
+    const hint = h('div.ao-hint', arms ? 'Unticked arms are left out of the plot and the legend; their counts stay in the spec.'
+      : 'Unticked levels are left out of the plot; their counts stay in the spec.');
+    inWrap.append(h('div.ctl-main.col', list, hint));
+    const label = (n) => (arms ? armLabel(n) : n);
+    const commit = (next) => { cur = next; emit(cur.slice()); paint(); };
+    const paint = () => {
+      const d = this.getData();
+      const names = (arms ? d.arms : d.levels) || [];
+      const rows = names.map((n) => {
+        const cb = h('input', { type: 'checkbox', title: 'Shown in the plot' });
+        cb.checked = !cur.includes(n);
+        cb.addEventListener('change', () => commit(cb.checked ? cur.filter((x) => x !== n) : [...cur.filter((x) => x !== n), n]));
+        const dot = arms ? h('span.ao-dot', { style: { background: colorHex((d.colors || {})[n], this.armSwatches) || '#ccc' } }) : null;
+        return h('div.ao-item' + (cb.checked ? '' : '.off'), cb, dot, h('span.ao-name', { title: n }, label(n)));
+      });
+      const unknown = cur.filter((n) => !names.includes(n)).map((n) => h('div.ao-item.unknown',
+        h('span.ao-name', { title: n }, `“${label(n)}” is not ${arms ? 'an arm' : 'a level'}`),
+        h('span.arm-tools', h('button.del', { type: 'button', title: 'Remove this name', on: { click: () => commit(cur.filter((x) => x !== n)) } }, '×'))));
+      list.replaceChildren(...rows, ...unknown, ...(names.length ? [] : [h('div.muted', arms ? 'No arms in the data' : 'No levels in the data')]));
+    };
+    return {
+      set: (v) => { cur = Array.isArray(v) ? v.slice() : []; paint(); },
+      disable: (dd) => { list.querySelectorAll('input,button').forEach((x) => { x.disabled = dd; }); },
+    };
   }
 
   /**
@@ -532,7 +566,7 @@ export class DataEditor {
         this._renameLevelColor(old, inp.value);
         this._changed(); this._relabel();
       });
-      return h('span.chip', inp, h('button', { type: 'button', title: 'Remove level', on: { click: () => { list.splice(i, 1); onStructural('remove', i); } } }, '×'));
+      return h('span.chip', inp, h('button', { type: 'button', title: 'Remove level', on: { click: () => { const gone = list[i]; list.splice(i, 1); this._forgetLevel(gone); onStructural('remove', i); } } }, '×'));
     });
     const add = h('button.add-chip', { type: 'button', on: { click: () => { list.push(`Level ${list.length + 1}`); onStructural('add', list.length - 1); } } }, '+ level');
     return h('div', h('div.de-label', label), h('div.chips', chips, add));
@@ -540,9 +574,18 @@ export class DataEditor {
 
   _renameLevelColor(old, nu) {
     const st = this.spec && this.spec.style;
+    if (st && Array.isArray(st.hidden_levels) && old !== nu && !st.hidden_levels.includes(nu)) st.hidden_levels = st.hidden_levels.map((x) => (x === old ? nu : x));
     const lc = st && st.level_colors;
     if (!lc || typeof lc !== 'object' || !(old in lc) || nu in lc || old === nu) return;
     st.level_colors = Object.fromEntries(Object.entries(lc).map(([k, v]) => [k === old ? nu : k, v]));
+  }
+
+  /** A level was removed: drop it from style.hidden_levels once no level list of the spec has it any more. */
+  _forgetLevel(name) {
+    const st = this.spec && this.spec.style, d = this.spec && this.spec.data;
+    if (!st || !Array.isArray(st.hidden_levels) || !d) return;
+    const lists = [d.levels || [], ...(Array.isArray(d.panels) ? d.panels.map((p) => p.levels || []) : [])];
+    if (!lists.some((l) => l.includes(name))) st.hidden_levels = st.hidden_levels.filter((x) => x !== name);
   }
 
   /** An arm (legend name) was renamed: follow it in every panel and in style.arm_order. */
@@ -551,6 +594,8 @@ export class DataEditor {
     for (const p of Array.isArray(d.panels) ? d.panels : []) for (const a of p.arms || []) if (a.name === old) a.name = nu;
     const ao = this.spec.style && this.spec.style.arm_order;
     if (ao && typeof ao === 'object') for (const k of ['fixed', 'manual']) if (Array.isArray(ao[k])) ao[k] = ao[k].map((x) => (x === old ? nu : x));
+    const st = this.spec.style;
+    if (st && Array.isArray(st.hidden_arms)) st.hidden_arms = st.hidden_arms.map((x) => (x === old ? nu : x));
   }
 
   /** An arm was removed: drop it from every panel and from style.arm_order. */
@@ -559,6 +604,8 @@ export class DataEditor {
     for (const p of Array.isArray(d.panels) ? d.panels : []) p.arms = (p.arms || []).filter((a) => a.name !== name);
     const ao = this.spec.style && this.spec.style.arm_order;
     if (ao && typeof ao === 'object') for (const k of ['fixed', 'manual']) if (Array.isArray(ao[k])) ao[k] = ao[k].filter((x) => x !== name);
+    const st = this.spec.style;
+    if (st && Array.isArray(st.hidden_arms)) st.hidden_arms = st.hidden_arms.filter((x) => x !== name);
   }
 
   _relabel() {

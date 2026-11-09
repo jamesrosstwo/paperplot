@@ -20,6 +20,7 @@ if "designer.config" not in sys.modules:
     os.environ.setdefault("DESIGNER_PAPER_ROOT", SCRATCH_PAPER)
     os.environ["DESIGNER_STATE_DIR"] = tempfile.mkdtemp(prefix="designer_kinds_test_")
 
+import matplotlib.legend  # noqa: E402
 import numpy as np  # noqa: E402
 import pytest
 import yaml  # noqa: E402
@@ -474,6 +475,7 @@ LINES_CHANGES = {
     "xtick_fontsize": 6, "ylabel": "Rate", "ylabel_fontsize": 7, "y_mode": "percent", "out_of": 10,
     "ytick_step": 25, "x_margin": 0.1, "xlabel_pad": 8, "grid_color": "#FF0000", "grid_width": 1.0,
     "bottom_spine": "theme", "ci": "wilson", "palette": "paired", "fill_darken": 1.0, "transparent": True,
+    "hidden_arms": ["Rope"], "hidden_levels": ["Hard"],
 }
 # visible only with intervals on: (setup, value)
 LINES_COMBOS = {
@@ -549,6 +551,57 @@ def test_bayes_interval_of_zero_and_full_counts():
         render.plt.close(fig)
         z = [st for st in stats if st["k"] in (0, 20) and st["n"] == 20 and st["panel"] in ("Push-T", "Rope")]
         assert len(z) == 2 and z[0]["lo"] > 0 and z[1]["hi"] < 1, z
+
+
+def test_hidden_arms_and_levels():
+    """hidden_arms / hidden_levels leave arms and levels out of the plot, legend and stats; the data stays."""
+    for make in (lambda: load_seed("mug_baselines_panels"), lines_panels_seed):
+        s = make()
+        data_before = copy.deepcopy(s["data"])
+        s["style"].update(hidden_arms=["RoboEngine"], hidden_levels=["Easy"], legend_loc="above")
+        assert spec.validate(s) == []
+        fig, stats, warns = _draw(s)
+        try:
+            arms = {st["arm"] for st in stats}
+            assert "RoboEngine" not in arms and {BASE, "Ours"} <= arms
+            assert "Easy" not in {st["level"] for st in stats}
+            legends = [ax.get_legend() for ax in fig.axes] + list(fig.legends) + [
+                a for ax in fig.axes for a in ax.artists if isinstance(a, matplotlib.legend.Legend)]
+            legend = [t.get_text() for lg in legends if lg is not None for t in lg.get_texts()]
+            assert "RoboEngine" not in legend and BASE in legend
+            for ax in fig.axes:
+                assert [t.get_text() for t in ax.get_xticklabels() if t.get_text()] in ([], ["Nominal", "Medium"])
+            assert not any("hidden" in w for w in warns), warns
+        finally:
+            render.plt.close(fig)
+        assert s["data"] == data_before                       # counts untouched
+    # unknown names warn, they do not fail
+    s = load_seed("mug_baselines_panels")
+    s["style"].update(hidden_arms=["Nope"], hidden_levels=["Never"])
+    fig, _, warns = _draw(s)
+    render.plt.close(fig)
+    assert any("hidden_arms: no arm 'Nope'" in w for w in warns) and any("hidden_levels: no level 'Never'" in w for w in warns)
+    # a palette keeps every shown arm's color
+    def zero_nvs_fill(hide):
+        t = load_seed("mug_baselines_panels")
+        t["style"].update(palette="categorical", hidden_arms=hide, arm_order=None, legend_loc="above")
+        fig, stats, _ = _draw(t)
+        try:
+            ax = fig.axes[0]
+            bars = [p for p in ax.patches if isinstance(p, Rectangle) and p.get_width() < 1 and p.get_height() > 0]
+            # ZeroNVS is the only arm with a bar in Mug Easy at its slot; find its color via the legend entry
+            leg = next(lg for lg in [ax.get_legend(), *fig.legends,
+                       *[a for a in ax.artists if isinstance(a, matplotlib.legend.Legend)]] if lg is not None)
+            names = [x.get_text() for x in leg.get_texts()]
+            return to_hex(leg.legend_handles[names.index("ZeroNVS")].get_facecolor())
+        finally:
+            render.plt.close(fig)
+    assert zero_nvs_fill([]) == zero_nvs_fill(["RoboEngine", "Classical"])
+    # validation
+    errs = lambda **kw: spec.validate(dict(load_seed("mug_baselines_panels"), style=dict(load_seed("mug_baselines_panels")["style"], **kw)))
+    assert any("hidden_arms" in e for e in errs(hidden_arms="Ours"))
+    assert any("twice" in e for e in errs(hidden_levels=["Easy", "Easy"]))
+    assert errs(hidden_arms=[], hidden_levels=[]) == []
 
 
 def test_lines_keys_are_honoured():

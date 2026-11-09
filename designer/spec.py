@@ -98,6 +98,16 @@ def _arm_order_row():
                       "keep the listed order. n/a bars keep their slot."))
 
 
+def _shown_rows():
+    return [
+        ("hidden_arms", "Shown arms", "json", [], "Order",
+         dict(example=[], help="Arms left out of the plot and the legend (names). Their counts stay in the spec; "
+                               "untick in the list to hide, tick to show again.")),
+        ("hidden_levels", "Shown levels", "json", [], "Order",
+         dict(example=[], help="Levels (x groups) left out of the plot (names). Their counts stay in the spec.")),
+    ]
+
+
 def _panel_rows():
     return [
         ("panel_gap", "Panel gap (pt)", "slider", 6, "Panels",
@@ -132,6 +142,7 @@ def _grouped_bars_table():
          dict(min=0.0, max=1.5, step=0.05, nullable=True, help="Bar outline width; auto = theme")),
         ("na_label", "n/a label", "text", "n/a", "Bars", dict(help="Mark for a level an arm was not evaluated on")),
         _arm_order_row(),
+        *_shown_rows(),
         ("level_sort", "Sort groups", "dropdown", "none", "Order",
          dict(options=_opts("none", "desc", "asc"),
               help="Order the x groups by their pooled success rate (stable; groups without data last)")),
@@ -211,6 +222,7 @@ def _lines_table():
          dict(options=[{"value": "join", "label": "join across"}, {"value": "break", "label": "break the line"}],
               help="A level an arm was not evaluated on: draw straight across it, or leave a gap")),
         _arm_order_row(),
+        *_shown_rows(),
         ("legend_loc", "Legend", "dropdown", "above", "Legend", dict(options=_opts("above", "right", "none"))),
         ("legend_align", "Legend align", "dropdown", "right", "Legend", dict(options=_opts("center", "left", "right"))),
         ("legend_cols", "Legend columns", "slider", None, "Legend",
@@ -481,6 +493,11 @@ def _check_json(key, v, where, errors, sw, theme):
                 errors.append(f"{where}.{lk}: names repeat")
         if v.get("rest", "as_listed") not in ARM_ORDER_REST:
             errors.append(f"{where}.rest: {v.get('rest')!r} not one of {list(ARM_ORDER_REST)}")
+    elif key in ("hidden_arms", "hidden_levels"):
+        if not isinstance(v, list) or not all(isinstance(x, str) and x for x in v):
+            errors.append(f"{where}: must be a list of names")
+        elif len(set(v)) != len(v):
+            errors.append(f"{where}: lists a name twice")
     elif key == "level_colors":
         if not isinstance(v, dict) or not all(isinstance(k, str) for k in v):
             errors.append(f"{where}: must be {{group name: color}} or null")

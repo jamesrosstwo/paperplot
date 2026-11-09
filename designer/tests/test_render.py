@@ -149,7 +149,7 @@ CHANGES = {
     "palette": "categorical", "fill_darken": 1.0, "edge_darken": 0.3, "transparent": True,
     "arm_order": {"fixed": ["Ours"], "rest": "as_listed"}, "level_sort": "desc", "legend_align": "right",
     "legend_box_fontsize": 8, "legend_pad": 0.5, "xtick_rotation": 30, "level_colors": {"Easy": "#BBBBBB"},
-    "bar_width_pt": 4, "bar_gap_pt": 1,
+    "bar_width_pt": 4, "bar_gap_pt": 1, "hidden_arms": ["ZeroNVS"], "hidden_levels": ["Medium"],
 }
 # keys that only show together with another setting: {key: (settings that make it visible, changed value)}
 COMBOS = {
