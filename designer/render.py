@@ -446,8 +446,8 @@ def _bars_panel(ax, t, style, levels, arms, base_colors, warns, stats, ylabel, p
             if lo is None:
                 continue
             bar = bar_at[(i, j)]
-            y = 100 * k / n
-            ax.errorbar(bar.get_x() + bar.get_width() / 2, y, yerr=[[y - 100 * lo], [100 * hi - y]], fmt="none",
+            # drawn from lo to hi, not around k/n: a Bayes interval of 0/n or n/n can exclude the observed rate
+            ax.errorbar(bar.get_x() + bar.get_width() / 2, 50 * (lo + hi), yerr=50 * (hi - lo), fmt="none",
                         ecolor=color, elinewidth=style["ci_linewidth"],
                         capsize=style["ci_capsize"], capthick=style["ci_linewidth"], zorder=5)
 
@@ -729,9 +729,8 @@ def _lines_panel(ax, t, style, levels, arms, base_colors, warns, stats, panel):
                 warns.append(f"{_where(arm['name'], levels[j], panel)}: {k}/{n} drawn at its rate on a /{out_of} axis")
             los.append(np.nan if lo is None else 100 * lo)
             his.append(np.nan if hi is None else 100 * hi)
-            if lo is not None and style["ci_style"] == "whiskers":
-                y = ys[j]
-                ax.errorbar(x[j], y, yerr=[[y - 100 * lo], [100 * hi - y]], fmt="none", ecolor=ecolor,
+            if lo is not None and style["ci_style"] == "whiskers":     # lo..hi, not around k/n (see _bars_panel)
+                ax.errorbar(x[j], 50 * (lo + hi), yerr=50 * (hi - lo), fmt="none", ecolor=ecolor,
                             elinewidth=style["ci_linewidth"], capsize=style["ci_capsize"],
                             capthick=style["ci_linewidth"], zorder=2.5, clip_on=False)
         if style["ci"] != "none" and style["ci_style"] == "band":

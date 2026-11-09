@@ -539,6 +539,18 @@ def test_lines_panels():
         assert render.preview_png(t, dpi=60) != base, f"style.{k} = {v!r} did not change the stacked lines"
 
 
+def test_bayes_interval_of_zero_and_full_counts():
+    """A Bayes interval of 0/n (or n/n) lies above (below) the observed rate; it is drawn, not rejected."""
+    for s in (lines_panels_seed(), load_seed("mug_baselines_panels")):
+        s["style"]["ci"] = "bayes"
+        s["data"]["panels"][1]["arms"][0]["counts"][0] = [0, 20]
+        s["data"]["panels"][2]["arms"][0]["counts"][0] = [20, 20]
+        fig, stats, _ = _draw(s)
+        render.plt.close(fig)
+        z = [st for st in stats if st["k"] in (0, 20) and st["n"] == 20 and st["panel"] in ("Push-T", "Rope")]
+        assert len(z) == 2 and z[0]["lo"] > 0 and z[1]["hi"] < 1, z
+
+
 def test_lines_keys_are_honoured():
     assert set(LINES_CHANGES) | set(LINES_COMBOS) | LINES_PANEL_KEYS == set(spec.defaults("lines")), \
         set(spec.defaults("lines")) ^ (set(LINES_CHANGES) | set(LINES_COMBOS) | LINES_PANEL_KEYS)
