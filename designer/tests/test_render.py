@@ -58,6 +58,9 @@ def _install_dataset():
         datastore.add("difficulty_eval", str(TSV), notes="render test", make_link=False)
 
 
+if not TSV.is_file():                                # fixture data, not in the repo (see designer/docker/README.md)
+    import pytest
+    pytest.skip(f"fixture {TSV.relative_to(ROOT)} is missing", allow_module_level=True)
 _install_dataset()
 
 

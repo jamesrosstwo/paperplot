@@ -20,6 +20,7 @@ if "designer.config" not in sys.modules:
     os.environ["DESIGNER_STATE_DIR"] = tempfile.mkdtemp(prefix="designer_kinds_test_")
 
 import numpy as np  # noqa: E402
+import pytest
 import yaml  # noqa: E402
 from matplotlib.colors import to_hex  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
@@ -78,6 +79,8 @@ def test_lines_reproduces_fig4():
         a["counts"] = old[a["name"]]
     r = render.render(s, OUT / "difficulty_by_task.pdf")
     ref = ROOT / "figures" / "out" / "difficulty_by_task.png"
+    if not ref.is_file():
+        pytest.skip(f"reference {ref.relative_to(ROOT)} is missing")
     _assert_same_png(r["png"], ref, "lines (Fig. 4)")
     a, b = _mediabox(r["pdf"]), _mediabox(ref.with_suffix(".pdf"))
     assert abs(a[0] - b[0]) < 0.01 and abs(a[1] - b[1]) < 0.01, (a, b)
@@ -94,6 +97,8 @@ def test_conditions_reproduces_mug_conditions():
     s["data"]["arms"][0]["counts"] = [[old[l], 20] for l in lv]
     r = render.render(s, OUT / "mug_conditions.pdf")
     ref = ROOT / "figures" / "out" / "mug_conditions.png"
+    if not ref.is_file():
+        pytest.skip(f"reference {ref.relative_to(ROOT)} is missing")
     _assert_same_png(r["png"], ref, "conditions")
     a, b = _mediabox(r["pdf"]), _mediabox(ref.with_suffix(".pdf"))
     assert abs(a[0] - b[0]) < 0.01 and abs(a[1] - b[1]) < 0.01, (a, b)
