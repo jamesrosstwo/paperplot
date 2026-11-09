@@ -117,6 +117,12 @@ def _grouped_bars_table():
         ("bar_fill", "Bar width / bar gap", "slider", 0.583, "Bars",
          dict(min=0.2, max=1.0, step=0.001, help="Bar width as a fraction of its sub-slot inside a group; the gap "
                                                  "between neighbouring bars is 1 - this")),
+        ("bar_width_pt", "Bar width (pt)", "slider", None, "Bars",
+         dict(min=1, max=40, step=0.25, nullable=True, help="Each bar's width in points; overrides 'Bar width / bar "
+                                                            "gap'. auto = use the ratios")),
+        ("bar_gap_pt", "Bar gap (pt)", "slider", None, "Bars",
+         dict(min=0, max=20, step=0.25, nullable=True, help="Gap between neighbouring bars of a group in points; "
+              "the groups then take what is left ('Group width' is ignored). auto = use the ratios")),
         ("edge_width", "Edge width (pt)", "slider", None, "Bars",
          dict(min=0.0, max=1.5, step=0.05, nullable=True, help="Bar outline width; auto = theme")),
         ("na_label", "n/a label", "text", "n/a", "Bars", dict(help="Mark for a level an arm was not evaluated on")),

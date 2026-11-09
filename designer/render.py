@@ -513,7 +513,43 @@ def _panels_of(data):
     return [{"title": None, "levels": data["levels"], "arms": data["arms"]}], False
 
 
+def _bars_in_points(spec, style, data, warns):
+    """style with bar_width_pt / bar_gap_pt turned into the group_width / bar_fill ratios for this figure.
+
+    The axes width in points is known only after layout, so the figure is laid out once with the ratios as they
+    are; the x range (-0.5 .. groups - 0.5) does not depend on bar widths, so one pass gives the exact scale."""
+    probe = dict(style, bar_width_pt=None, bar_gap_pt=None)
+    fig, _ = _grouped_bars(spec, probe, data, [])
+    try:
+        fig.draw_without_rendering()
+        ax = fig.axes[0]                               # stacked panels share one width
+        width_pt = ax.get_position().width * fig.get_figwidth() * 72
+        x0, x1 = ax.get_xlim()
+    finally:
+        plt.close(fig)
+    u = abs(x1 - x0) / width_pt                        # data units per point
+    n = max(len(data["arms"]), 1)
+    gw = float(style["group_width"])
+    w = style.get("bar_width_pt")
+    g = style.get("bar_gap_pt")
+    if w is None:                                      # gap only: keep the bars as wide as the ratios make them
+        w = gw / n * float(style["bar_fill"]) / u
+    if g is not None:
+        gw, fill = n * (w + g) * u, w / (w + g) if w + g > 0 else 1.0
+        if gw > 1:
+            warns.append(f"bar width + gap: a group of {n} bars is {n * (w + g) - g:.1f} pt, wider than its "
+                         f"{1 / u:.1f} pt slot; groups overlap")
+    else:
+        fill = w * u / (gw / n)
+        if fill > 1:
+            warns.append(f"bar width {w:g} pt is wider than a bar's {gw / n / u:.1f} pt slot; bars overlap "
+                         "(lower it, or set a bar gap)")
+    return dict(style, group_width=gw, bar_fill=fill, bar_width_pt=None, bar_gap_pt=None)
+
+
 def _grouped_bars(spec, style, data, warns):
+    if style.get("bar_width_pt") is not None or style.get("bar_gap_pt") is not None:
+        style = _bars_in_points(spec, style, data, warns)
     t = _activate(style, warns)
     panels, multi = _panels_of(data)
     shared = data["arms"]
