@@ -345,6 +345,11 @@ def _y_formatter(ax, style):
         out_of = style.get("out_of")
         N = int(out_of) if out_of and float(out_of) == int(out_of) else (out_of or 20)
         ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v * N / 100:.0f}/{N}"))
+    elif style["y_mode"] == "fraction":
+        # same tick positions as percent, labelled 0..1 with as many decimals as the step needs (25 -> 0.25)
+        step = Fraction(str(style["ytick_step"])) / 100
+        dec = next((d for d in range(6) if (step * 10 ** d).denominator == 1), 6)
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v / 100:.{dec}f}"))
     else:
         ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}"))
 

@@ -74,7 +74,7 @@ style:
   xtick_fontsize: 7        # slider 4..14 (pt)
   ylabel: Successes        # text
   ylabel_fontsize: null    # slider; null = theme
-  y_mode: count            # dropdown: percent | count   (count: tick labels k/out_of, bars still at each arm's rate)
+  y_mode: count            # dropdown: percent | fraction | count   (fraction: tick labels 0..1; count: tick labels k/out_of, bars still at each arm's rate)
   out_of: 20               # number (count mode)
   ytick_step: 25           # slider 5..50 (in percent units)
   ci: wilson               # dropdown: wilson | bayes | none   (bayes = paperplot.stats.rate_interval)
