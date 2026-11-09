@@ -346,10 +346,10 @@ def _y_formatter(ax, style):
         N = int(out_of) if out_of and float(out_of) == int(out_of) else (out_of or 20)
         ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v * N / 100:.0f}/{N}"))
     elif style["y_mode"] == "fraction":
-        # same tick positions as percent, labelled 0..1 with as many decimals as the step needs (25 -> 0.25)
+        # same tick positions as percent, labelled 0..1 without trailing zeros (step 20 -> 0, 0.2, ..., 1)
         step = Fraction(str(style["ytick_step"])) / 100
         dec = next((d for d in range(6) if (step * 10 ** d).denominator == 1), 6)
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v / 100:.{dec}f}"))
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v / 100:.{dec}f}".rstrip("0").rstrip(".") or "0"))
     else:
         ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}"))
 
@@ -492,7 +492,7 @@ def _bars_finish(fig, ax, t, style, levels, warns, *, multi=False, bottom=True, 
 
 def _panel_title(fig, ax, style, title):
     loc = style.get("panel_title_loc", "upper right")
-    if not title or loc == "none":
+    if not title or loc in ("none", "left"):         # 'left' is the panel's y label (see _grouped_bars)
         return
     fs = style.get("panel_title_fontsize")
     fs = fs if fs is not None else matplotlib.rcParams["axes.titlesize"]
@@ -539,11 +539,15 @@ def _grouped_bars(spec, style, data, warns):
         fig, ax = pp.subplots(f"{style['width_pt']}pt", height=f"{style['height_pt']}pt")
         axes = [ax]
     ymode = style.get("panel_ylabel", "each")
+    # panel_title_loc 'left': each panel's title is its (rotated) y label beside the ticks, and the y label is one
+    # figure-level label further left, shared by every panel (panel_ylabel does not apply)
+    titles_left = multi and style.get("panel_title_loc") == "left"
     stats = []
     for pi, (ax, p) in enumerate(zip(axes, panels)):
         show_y = not multi or ymode == "each" or (ymode == "first" and pi == 0) or (ymode == "middle" and pi == n_p // 2)
+        ylabel = p.get("title") if titles_left else (style["ylabel"] if show_y else None)
         _bars_panel(ax, t, style, p["levels"], p["arms"], base_colors, warns, stats,
-                    style["ylabel"] if show_y else None, p.get("title") if multi else None)
+                    ylabel, p.get("title") if multi else None)
     edge_w = t.bars.get("edge_width", 0)
     fills = [_darken(c, style["fill_darken"]) for c in base_colors]
     edges = [_darken(f, style["edge_darken"]) if edge_w else "none" for f in fills]
@@ -559,6 +563,13 @@ def _grouped_bars(spec, style, data, warns):
     for pi, (ax, p) in enumerate(zip(axes, panels)):
         _bars_finish(fig, ax, t, style, p["levels"], warns, multi=multi, bottom=pi == n_p - 1,
                      title=p.get("title") if multi else None)
+        if titles_left:
+            fs = style.get("panel_title_fontsize")
+            ax.yaxis.label.set_fontsize(fs if fs is not None else matplotlib.rcParams["axes.titlesize"])
+    if titles_left and style.get("ylabel"):
+        fs = style.get("ylabel_fontsize")
+        fig.supylabel(style["ylabel"], fontsize=fs if fs is not None else matplotlib.rcParams["axes.labelsize"],
+                      color=matplotlib.rcParams["axes.labelcolor"])
     _tidy_and_check(fig, axes, max(len(p["levels"]) for p in panels), warns)
     return fig, stats
 

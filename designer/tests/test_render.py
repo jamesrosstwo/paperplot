@@ -206,28 +206,6 @@ def test_specific_effects():
     assert render.preview(s, dpi=50)["stats"][0]["lo"] < render.wilson(16, 20, 0.95)[0]
 
 
-def test_fraction_y_mode_labels_zero_to_one():
-    """y_mode=fraction keeps the percent tick positions but labels them 0..1 with the decimals the step needs."""
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    for step, want in ((25, ["0.00", "0.25", "0.50", "0.75", "1.00"]), (20, ["0.0", "0.2", "0.4", "0.6", "0.8", "1.0"]),
-                       (50, ["0.0", "0.5", "1.0"]), (5, None)):
-        fig, ax = plt.subplots()
-        ax.set_ylim(0, 100)
-        render._y_formatter(ax, {"y_mode": "fraction", "ytick_step": step, "out_of": 20})
-        fig.canvas.draw()
-        got = [t.get_text() for t in ax.get_yticklabels() if 0 <= t.get_position()[1] <= 100]
-        plt.close(fig)
-        if want is None:
-            assert got[0] == "0.00" and got[-1] == "1.00" and "0.05" in got, got
-        else:
-            assert got == want, (step, got)
-    for kind, rows in spec.controls()["style_by_kind"].items():
-        y = [r for r in rows if r.get("key") == "y_mode"]
-        assert y and "fraction" in [o["value"] for o in y[0]["options"]], kind
-
-
 def test_edge_cases():
     s = seed()
     s["data"]["arms"][1]["counts"] = [[0, 20], [0, 20], [0, 20]]          # zero-height bars

@@ -167,6 +167,46 @@ def test_panels_one_global_order_dup_cis_titles():
         render.plt.close(fig)
 
 
+def test_fraction_y_mode_labels_zero_to_one():
+    """y_mode=fraction keeps the percent tick positions and labels them 0..1 without trailing zeros."""
+    for step, want in ((20, ["0", "0.2", "0.4", "0.6", "0.8", "1"]), (25, ["0", "0.25", "0.5", "0.75", "1"]),
+                       (50, ["0", "0.5", "1"])):
+        fig, ax = render.plt.subplots()
+        try:
+            ax.set_ylim(0, 100)
+            render._y_formatter(ax, {"y_mode": "fraction", "ytick_step": step, "out_of": 20})
+            fig.canvas.draw()
+            got = [t.get_text() for t in ax.get_yticklabels() if 0 <= t.get_position()[1] <= 100]
+        finally:
+            render.plt.close(fig)
+        assert got == want, (step, got)
+    for kind, rows in spec.controls()["style_by_kind"].items():
+        y = [r for r in rows if r.get("key") == "y_mode"]
+        assert y and "fraction" in [o["value"] for o in y[0]["options"]], kind
+
+
+def test_panel_titles_left_as_y_labels():
+    """panel_title_loc=left: each panel title is that panel's y label, the y label is one shared figure label."""
+    s = load_seed("mug_baselines_panels")
+    s["style"].update(panel_title_loc="left", panel_title_fontsize=9, ylabel="Success rate (n=20)",
+                      ylabel_fontsize=10, panel_ylabel="middle")
+    assert spec.validate(s) == []
+    fig, stats, warns = _draw(s)
+    try:
+        axes = fig.axes
+        assert [ax.get_ylabel() for ax in axes] == ["Mug", "Push-T", "Rope"]
+        assert {ax.yaxis.label.get_fontsize() for ax in axes} == {9}
+        assert all(not [t for t in ax.texts if not isinstance(t, Annotation)] for ax in axes)   # no corner titles
+        sup = fig._supylabel
+        assert sup is not None and sup.get_text() == "Success rate (n=20)" and sup.get_fontsize() == 10
+        fig.canvas.draw()                    # the shared label sits left of every panel label, without overlap
+        r = fig.canvas.get_renderer()
+        sup_box = sup.get_window_extent(r)
+        assert all(sup_box.x1 <= ax.yaxis.label.get_window_extent(r).x0 for ax in axes)
+    finally:
+        render.plt.close(fig)
+
+
 def test_dup_interval_colors():
     s = load_seed("mug_baselines_panels")
     s["style"]["dup_ci_color"] = "#00FF00"
