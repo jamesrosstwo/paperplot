@@ -540,7 +540,7 @@ def _grouped_bars(spec, style, data, warns):
         axes = [ax]
     ymode = style.get("panel_ylabel", "each")
     # panel_title_loc 'left' / 'right': each panel's title is its rotated y label (left: beside the ticks; right: at the
-    # right edge, reading top to bottom), and the y label is one figure-level label on the left shared by every panel
+    # right edge), reading bottom to top like the y label, which is one figure-level label on the left shared by every panel
     # (panel_ylabel does not apply)
     title_side = style.get("panel_title_loc") if multi and style.get("panel_title_loc") in ("left", "right") else None
     titles_aside = title_side is not None
@@ -568,10 +568,8 @@ def _grouped_bars(spec, style, data, warns):
         if titles_aside:
             fs = style.get("panel_title_fontsize")
             ax.yaxis.label.set_fontsize(fs if fs is not None else matplotlib.rcParams["axes.titlesize"])
-            if title_side == "right":
+            if title_side == "right":                  # same reading direction as the shared y label (bottom to top)
                 ax.yaxis.set_label_position("right")
-                ax.yaxis.label.set_rotation(270)
-                ax.yaxis.label.set_va("bottom")
     if titles_aside and style.get("ylabel"):
         fs = style.get("ylabel_fontsize")
         fig.supylabel(style["ylabel"], fontsize=fs if fs is not None else matplotlib.rcParams["axes.labelsize"],

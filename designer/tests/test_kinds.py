@@ -213,7 +213,7 @@ def test_panel_titles_left_as_y_labels():
         axes = fig.axes
         assert [ax.get_ylabel() for ax in axes] == ["Mug", "Push-T", "Rope"]
         assert {ax.yaxis.get_label_position() for ax in axes} == {"right"}
-        assert {ax.yaxis.label.get_rotation() for ax in axes} == {270}
+        assert {ax.yaxis.label.get_rotation() for ax in axes} == {90} == {fig._supylabel.get_rotation()}
         assert fig._supylabel.get_text() == "Success rate (n=20)"
         fig.canvas.draw()                    # titles right of the plot area, inside the figure; shared label left
         r = fig.canvas.get_renderer()
