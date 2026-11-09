@@ -288,6 +288,9 @@ def test_editor_keys_and_conflict_flow():
     app = _read("app.js")
     for k in ("'Ctrl-S'", "'Ctrl-Enter'", "'Ctrl-J'", "'Ctrl-F': 'findPersistent'"):
         assert k in app, k
+    # Ctrl+S / Cmd+S in the editor save the section and recompile, like Ctrl+Enter
+    assert "'Ctrl-S': () => saveTexAndRecompile(), 'Cmd-S': () => saveTexAndRecompile()" in app
+    assert "if (ed.hasFocus() || S.texDirty) saveTexAndRecompile();" in app
     assert "cm.on('mousedown'" in app and "e.ctrlKey || e.metaKey" in app     # Ctrl+click -> show on page
     body = app[app.index("async function resolveConflict"):app.index("async function saveTexAndRecompile")]
     # "Keep mine" overwrites only after an explicit confirm, and still as compare-and-swap on the disk hash

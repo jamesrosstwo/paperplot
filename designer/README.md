@@ -89,7 +89,7 @@ without `DESIGNER_TOKEN` unless `DESIGNER_HOST` is explicitly set to a loopback 
 ## Using it (2026-11-09 additions)
 
 - **Left: section editor.** One whole `.tex` file of the paper (the main file or anything it `\input`s / `\include`s)
-  in CodeMirror. Ctrl+S saves, Ctrl+Enter saves and recompiles, Ctrl+J or Ctrl+click shows the line on the page, a
+  in CodeMirror. Ctrl+S (or Ctrl+Enter) saves and recompiles, Ctrl+/ toggles % comments, Ctrl+J or Ctrl+click shows the line on the page, a
   click on the page opens its source line. Saves are compare-and-swap on the file's hash: if the file changed on disk
   (an Overleaf pull, another editor) nothing is written and you choose Copy my edits / Reload from disk / Keep mine.
   The hamburger (or `M`) lists sections, pages and figures. `[` / `]` hide the editor / the controls.
