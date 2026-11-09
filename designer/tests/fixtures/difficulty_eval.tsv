@@ -1,0 +1,16 @@
+task	condition	policy	successes	trials
+mug	Nominal	base	16	20
+mug	Easy	base	12	20
+mug	Medium	base	9	20
+mug	Nominal	classical	3	5
+mug	Easy	classical	3	10
+mug	Easy	zeronvs	5	20
+mug	Nominal	roboengine	13	20
+mug	Easy	roboengine	11	20
+mug	Nominal	ours	17	20
+mug	Easy	ours	15	20
+push_t	Nominal	base	15	20
+push_t	Easy	base	4	20
+rope	Nominal	base	17	20
+rope	Easy	base	13	20
+rope	Hard	ours-small	2	20

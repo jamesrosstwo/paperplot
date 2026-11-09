@@ -3,6 +3,7 @@
 #
 #   designer/docker/test.sh                               # whole suite
 #   designer/docker/test.sh designer/tests/test_spec.py   # extra arguments go to pytest
+#   designer/docker/test.sh --update-references           # re-render designer/tests/fixtures/reference/*
 #
 # The repo is mounted read-only and copied into the container. PAPER_SOURCE (default ~/paper-rss) is mounted
 # read-only and cloned inside the container as the tests' disposable paper, so the live clone is never written to.
@@ -18,7 +19,17 @@ IMAGE="${IMAGE:-paperplot-designer:latest}"
 PAPER_SOURCE="${PAPER_SOURCE-$HOME/paper-rss}"
 PAPER_REV="${PAPER_REV-bd9b53a3ba025603ce813b262b3797072ec19e25}"
 
+update=0
+if [[ "${1:-}" == "--update-references" ]]; then
+    update=1
+    shift
+    set -- -q -k "pixel_fidelity or reproduces" designer/tests/test_render.py designer/tests/test_kinds.py "$@"
+fi
+
 mounts=(-v "$REPO:/src:ro")
+if [[ $update == 1 ]]; then
+    mounts+=(-v "$REPO/designer/tests/fixtures/reference:/refs-out")
+fi
 if [[ -n "$PAPER_SOURCE" ]]; then
     [[ -d "$PAPER_SOURCE/.git" ]] || { echo "PAPER_SOURCE $PAPER_SOURCE is not a git clone" >&2; exit 2; }
     mounts+=(-v "$(cd "$PAPER_SOURCE" && pwd -P):/paper-source:ro")
@@ -28,7 +39,8 @@ tty=()
 if [[ -t 0 && -t 1 ]]; then tty=(-t); fi
 
 # shellcheck disable=SC2016  # expanded inside the container
-exec docker run --rm "${tty[@]}" --init "${mounts[@]}" -e PAPER_REV="${PAPER_REV:-}" --entrypoint bash "$IMAGE" -c '
+exec docker run --rm "${tty[@]}" --init "${mounts[@]}" -e PAPER_REV="${PAPER_REV:-}" \
+    -e DESIGNER_UPDATE_REFERENCES="$update" --entrypoint bash "$IMAGE" -c '
 set -euo pipefail
 work=$(mktemp -d)
 cp -r /src/. "$work/repo"
@@ -38,6 +50,12 @@ if [[ -d /paper-source ]]; then
     git -c safe.directory="*" clone -q /paper-source "$work/paper"
     if [[ -n "${PAPER_REV:-}" ]]; then git -C "$work/paper" checkout -q "$PAPER_REV"; fi
     export DESIGNER_TEST_PAPER="$work/paper"
+fi
+if [[ "$DESIGNER_UPDATE_REFERENCES" == 1 ]]; then
+    python -m pytest -p no:cacheprovider "$@"
+    cp designer/tests/fixtures/reference/* /refs-out/
+    ls -l /refs-out
+    exit 0
 fi
 exec python -m pytest -p no:cacheprovider "$@"
 ' test.sh "${@:-designer/tests}"

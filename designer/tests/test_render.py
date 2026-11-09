@@ -1,10 +1,12 @@
 """Tests for designer/render.py. Run: python -m pytest designer/tests/test_render.py  (or python designer/tests/test_render.py).
 
 Uses a fresh temporary state dir and temporary output dirs; never touches the live Overleaf clone.
-If designer.datastore is missing, a stand-in with the same load_table(name) reads data/difficulty_eval.tsv with pandas."""
+If designer.datastore is missing, a stand-in with the same load_table(name) reads the fixture TSV with pandas.
+Fixtures (made-up data, kept in the repo): designer/tests/fixtures/ (difficulty_eval.tsv, reference/*.png)."""
 import copy
 import io
 import os
+import shutil
 import sys
 import tempfile
 import threading
@@ -32,8 +34,9 @@ SEED2 = ROOT / "designer" / "seeds" / "mug_difficulty_dataset.yaml"
 # The contract aims at < 0.5 s per preview (typically ~0.2 s); the assert allows 1 s so a busy machine (other jobs,
 # a browser, Docker) does not fail the suite. Tighten with DESIGNER_TEST_PREVIEW_LIMIT=0.5.
 PREVIEW_LIMIT_S = float(os.environ.get("DESIGNER_TEST_PREVIEW_LIMIT", "1.0"))
-REFERENCE_PNG = ROOT / "figures" / "out" / "mug_ours_auxq2_levels_short.png"
-TSV = ROOT / "data" / "difficulty_eval.tsv"
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+REFERENCE_PNG = FIXTURES / "reference" / "mug_ours_auxq2_levels_short.png"
+TSV = FIXTURES / "difficulty_eval.tsv"
 OUT = Path(tempfile.mkdtemp(prefix="designer_render_out_"))
 DATASTORE_STANDIN = False
 
@@ -58,9 +61,6 @@ def _install_dataset():
         datastore.add("difficulty_eval", str(TSV), notes="render test", make_link=False)
 
 
-if not TSV.is_file():                                # fixture data, not in the repo (see designer/docker/README.md)
-    import pytest
-    pytest.skip(f"fixture {TSV.relative_to(ROOT)} is missing", allow_module_level=True)
 _install_dataset()
 
 
@@ -78,11 +78,14 @@ def _img(data):
 
 def test_seed_pixel_fidelity():
     r = render.render(seed(), OUT / "short.pdf")
+    if os.environ.get("DESIGNER_UPDATE_REFERENCES") == "1":     # designer/docker/test.sh --update-references
+        REFERENCE_PNG.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(r["png"], REFERENCE_PNG)
     a, b = _img(r["png"]), _img(REFERENCE_PNG)
     assert a.shape == b.shape, (a.shape, b.shape)
     frac = float((a != b).any(-1).mean())
     strong = float((np.abs(a.astype(int) - b.astype(int)) > 32).any(-1).mean())
-    print(f"  seed vs figures/out PNG: {a.shape[1]}x{a.shape[0]} px, differing pixels {frac:.6f} (>32: {strong:.6f})")
+    print(f"  seed vs reference PNG: {a.shape[1]}x{a.shape[0]} px, differing pixels {frac:.6f} (>32: {strong:.6f})")
     from matplotlib import ft2font
     if ft2font.__freetype_version__ == "2.12.1":     # the FreeType that rendered the reference (Windows Anaconda)
         assert frac < 0.001, frac
@@ -98,10 +101,8 @@ def test_seed_pixel_fidelity():
     assert len(st) == 11
     s = st[("Nominal", "Classical")]
     assert (s["k"], s["n"]) == (3, 5) and abs(s["lo"] - 0.2307) < 1e-3 and abs(s["hi"] - 0.8824) < 1e-3
-    sys.path.insert(0, str(ROOT / "figures"))
-    import mug_best_bars as best
     for v in st.values():
-        lo, hi = best.wilson(v["k"], v["n"])
+        lo, hi = render.wilson(v["k"], v["n"])
         assert abs(lo - v["lo"]) < 1e-12 and abs(hi - v["hi"]) < 1e-12
 
 
@@ -148,6 +149,7 @@ CHANGES = {
     "palette": "categorical", "fill_darken": 1.0, "edge_darken": 0.3, "transparent": True,
     "arm_order": {"fixed": ["Ours"], "rest": "as_listed"}, "level_sort": "desc", "legend_align": "right",
     "legend_box_fontsize": 8, "legend_pad": 0.5, "xtick_rotation": 30, "level_colors": {"Easy": "#BBBBBB"},
+    "bar_width_pt": 4, "bar_gap_pt": 1,
 }
 # keys that only show together with another setting: {key: (settings that make it visible, changed value)}
 COMBOS = {

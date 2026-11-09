@@ -7,6 +7,7 @@ import copy
 import io
 import os
 import re
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -44,6 +45,17 @@ def _img(data):
     return np.asarray(Image.open(io.BytesIO(data) if isinstance(data, bytes) else data).convert("RGBA"))
 
 
+FIXTURES = Path(__file__).resolve().parent / "fixtures"
+
+
+def _maybe_update_reference(r, ref):
+    """designer/docker/test.sh --update-references: this render becomes the reference (PNG and PDF)."""
+    if os.environ.get("DESIGNER_UPDATE_REFERENCES") == "1":
+        ref.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(r["png"], ref)
+        shutil.copyfile(r["pdf"], ref.with_suffix(".pdf"))
+
+
 def _assert_same_png(png, ref, label):
     a, b = _img(png), _img(ref)
     assert a.shape == b.shape, (label, a.shape, b.shape)
@@ -78,7 +90,8 @@ def test_lines_reproduces_fig4():
     for a in s["data"]["arms"]:
         a["counts"] = old[a["name"]]
     r = render.render(s, OUT / "difficulty_by_task.pdf")
-    ref = ROOT / "figures" / "out" / "difficulty_by_task.png"
+    ref = FIXTURES / "reference" / "difficulty_by_task.png"
+    _maybe_update_reference(r, ref)
     if not ref.is_file():
         pytest.skip(f"reference {ref.relative_to(ROOT)} is missing")
     _assert_same_png(r["png"], ref, "lines (Fig. 4)")
@@ -96,7 +109,8 @@ def test_conditions_reproduces_mug_conditions():
            "View (hard)": 7, "Light (hard)": 12}
     s["data"]["arms"][0]["counts"] = [[old[l], 20] for l in lv]
     r = render.render(s, OUT / "mug_conditions.pdf")
-    ref = ROOT / "figures" / "out" / "mug_conditions.png"
+    ref = FIXTURES / "reference" / "mug_conditions.png"
+    _maybe_update_reference(r, ref)
     if not ref.is_file():
         pytest.skip(f"reference {ref.relative_to(ROOT)} is missing")
     _assert_same_png(r["png"], ref, "conditions")
@@ -223,6 +237,51 @@ def test_panel_titles_left_as_y_labels():
         assert fig._supylabel.get_window_extent(r).x1 <= min(ax.get_window_extent(r).x0 for ax in axes)
     finally:
         render.plt.close(fig)
+
+
+def _bar_boxes_pt(fig):
+    """[(x0, x1) in points] of the drawn bars, per axes, left to right."""
+    fig.canvas.draw()
+    r = fig.canvas.get_renderer()
+    k = 72 / fig.dpi
+    out = []
+    for ax in fig.axes:
+        boxes = [p.get_window_extent(r) for p in ax.patches
+                 if isinstance(p, Rectangle) and p.get_width() < 1 and p.get_height() > 0]
+        out.append(sorted((b.x0 * k, b.x1 * k) for b in boxes))
+    return out
+
+
+def test_bar_width_and_gap_in_points():
+    """bar_width_pt / bar_gap_pt give exact sizes in points, in single and stacked charts."""
+    for name in ("mug_ours_auxq2_levels_short", "mug_baselines_panels"):
+        s = load_seed(name)
+        s["style"].update(bar_width_pt=6, bar_gap_pt=1.5)
+        assert spec.validate(s) == []
+        fig, stats, warns = _draw(s)
+        try:
+            per_ax = _bar_boxes_pt(fig)
+        finally:
+            render.plt.close(fig)
+        widths = [x1 - x0 for boxes in per_ax for x0, x1 in boxes]
+        assert widths and all(abs(w - 6) < 0.02 for w in widths), (name, widths)
+        # neighbours inside a group are 1.5 pt apart (the Mug Easy group alone has all 5 bars)
+        bars = per_ax[0]
+        gaps = [b[0] - a[1] for a, b in zip(bars, bars[1:])]
+        assert sum(abs(g - 1.5) < 0.02 for g in gaps) >= 4, (name, gaps)
+        assert not any("overlap" in w for w in warns), warns
+    # width only: bars keep their ratio centres; too wide warns
+    s = load_seed("mug_ours_auxq2_levels_short")
+    s["style"].update(bar_width_pt=4)
+    fig, _, warns = _draw(s)
+    try:
+        assert all(abs((x1 - x0) - 4) < 0.02 for x0, x1 in _bar_boxes_pt(fig)[0])
+    finally:
+        render.plt.close(fig)
+    s["style"].update(bar_width_pt=40)
+    fig, _, warns = _draw(s)
+    render.plt.close(fig)
+    assert any("bars overlap" in w for w in warns), warns
 
 
 def test_dup_interval_colors():
