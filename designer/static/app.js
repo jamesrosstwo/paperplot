@@ -1376,6 +1376,8 @@ function makeEditor() {
       'Ctrl-Enter': () => saveTexAndRecompile(), 'Cmd-Enter': () => saveTexAndRecompile(),
       'Ctrl-J': () => showOnPage(), 'Cmd-J': () => showOnPage(),
       'Ctrl-F': 'findPersistent', 'Cmd-F': 'findPersistent',
+      // comment / uncomment the selected lines (or the cursor line) with % (addon/comment, stex lineComment)
+      'Ctrl-/': 'toggleComment', 'Cmd-/': 'toggleComment',
       Tab: (c) => (c.somethingSelected() ? c.execCommand('indentMore') : c.replaceSelection('    ')),
       'Shift-Tab': 'indentLess',
     };
@@ -2074,7 +2076,7 @@ function showShortcuts() {
   const rows = [
     ['← / →', 'Previous / next page'], ['+ / −', 'Zoom in / out (Ctrl+wheel zooms at the cursor)'], ['0', 'Fit width'], ['F', 'Zoom to the selected figure'],
     ['1 / 2 / 3', 'Page / Context / Plot only'], ['Ctrl+Enter', 'Recompile the paper (in the editor: save the section + recompile)'], ['Ctrl+S', 'Save the section (editor) or flush the spec save'],
-    ['Ctrl+F', 'Find in the section (Shift+Ctrl+F replace, Alt+G go to line)'], ['Ctrl+J', 'Show the editor line on the page (or Ctrl+click the line)'], ['M', 'Menu: sections, pages, figures'],
+    ['Ctrl+F', 'Find in the section (Shift+Ctrl+F replace, Alt+G go to line)'], ['Ctrl+J', 'Show the editor line on the page (or Ctrl+click the line)'], ['Ctrl+/', 'Comment / uncomment the selected lines with % (in the editor)'], ['M', 'Menu: sections, pages, figures'],
     ['R', 'Render + recompile the current spec'], ['L', 'Toggle the live overlay'], ['C (hold)', 'Compare: hide the overlay to see the compiled figure'],
     ['E', 'Focus the TeX editor'], ['[ / ]', 'Hide / show the left (TeX editor) / right (controls) panel'], ['D', 'Toggle the Data drawer'], ['Drag', 'Pan the page · click a figure to select it · click text to open its line in the editor'], ['Double-click slider', 'Reset to default'],
   ];

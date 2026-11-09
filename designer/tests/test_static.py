@@ -22,7 +22,8 @@ CM = [CM_BASE + "codemirror.min.js", CM_BASE + "codemirror.min.css", CM_BASE + "
 # section editor: Ctrl+F search (search + searchcursor + dialog), go to line, active-line highlight
 CM_ADDONS = [CM_BASE + "addon/dialog/dialog.min.css", CM_BASE + "addon/dialog/dialog.min.js",
              CM_BASE + "addon/search/searchcursor.min.js", CM_BASE + "addon/search/search.min.js",
-             CM_BASE + "addon/search/jump-to-line.min.js", CM_BASE + "addon/selection/active-line.min.js"]
+             CM_BASE + "addon/search/jump-to-line.min.js", CM_BASE + "addon/selection/active-line.min.js",
+             CM_BASE + "addon/comment/comment.min.js"]
 
 # contract section 5 (method, path regex); <x> segments become [^/]+ (fid may contain encoded slashes)
 CONTRACT = [
@@ -50,6 +51,11 @@ def read(name):
 def test_files_exist():
     for f in ("index.html", "app.js", "pdfview.js", "controls.js", "styles.css", "api.js", "ui.js"):
         assert (STATIC / f).is_file(), f
+
+
+def test_editor_toggle_comment_binding():
+    js = read("app.js")
+    assert "'Ctrl-/': 'toggleComment', 'Cmd-/': 'toggleComment'" in js
 
 
 def test_cdn_pinned_exactly():
