@@ -206,6 +206,24 @@ def test_panel_titles_left_as_y_labels():
     finally:
         render.plt.close(fig)
 
+    s["style"]["panel_title_loc"] = "right"
+    assert spec.validate(s) == []
+    fig, stats, warns = _draw(s)
+    try:
+        axes = fig.axes
+        assert [ax.get_ylabel() for ax in axes] == ["Mug", "Push-T", "Rope"]
+        assert {ax.yaxis.get_label_position() for ax in axes} == {"right"}
+        assert {ax.yaxis.label.get_rotation() for ax in axes} == {270}
+        assert fig._supylabel.get_text() == "Success rate (n=20)"
+        fig.canvas.draw()                    # titles right of the plot area, inside the figure; shared label left
+        r = fig.canvas.get_renderer()
+        for ax in axes:
+            lab = ax.yaxis.label.get_window_extent(r)
+            assert lab.x0 >= ax.get_window_extent(r).x1 and lab.x1 <= fig.bbox.x1 + 0.5
+        assert fig._supylabel.get_window_extent(r).x1 <= min(ax.get_window_extent(r).x0 for ax in axes)
+    finally:
+        render.plt.close(fig)
+
 
 def test_dup_interval_colors():
     s = load_seed("mug_baselines_panels")

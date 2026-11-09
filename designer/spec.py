@@ -71,7 +71,7 @@ def _opts(*values):
 
 
 ARM_ORDER_REST = ("pooled", "mean", "manual", "as_listed")
-PANEL_TITLE_LOCS = ("upper right", "upper left", "upper center", "above left", "above right", "left", "none")
+PANEL_TITLE_LOCS = ("upper right", "upper left", "upper center", "above left", "above right", "left", "right", "none")
 DUP_CI_DEFAULT = "#DDAA33"          # Paul Tol high-contrast yellow (Classical bars are tol-yellow #CCBB44)
 DUP_NOTE = "yellow CI = positions re-run; latest rollout counted"
 
@@ -105,8 +105,8 @@ def _grouped_bars_table():
         ("share_x_labels", "Shared x labels", "toggle", False, "Panels",
          dict(help="data.panels: x tick labels only under the bottom panel")),
         ("panel_title_loc", "Panel title", "dropdown", "upper right", "Panels",
-         dict(options=_opts(*PANEL_TITLE_LOCS), help="upper *: inside the axes; above *: over the axes; left: rotated beside the y ticks, "
-                                                               "with the y label shared by all panels")),
+         dict(options=_opts(*PANEL_TITLE_LOCS), help="upper *: inside the axes; above *: over the axes; left / right: rotated beside the "
+                                                               "y ticks / right edge, with the y label shared by all panels")),
         ("panel_title_fontsize", "Panel title size (pt)", "slider", None, "Panels",
          dict(min=4, max=16, step=0.5, nullable=True, help="auto = theme title size")),
         ("panel_ylabel", "Panel y label", "dropdown", "each", "Panels",

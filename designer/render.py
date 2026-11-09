@@ -492,7 +492,7 @@ def _bars_finish(fig, ax, t, style, levels, warns, *, multi=False, bottom=True, 
 
 def _panel_title(fig, ax, style, title):
     loc = style.get("panel_title_loc", "upper right")
-    if not title or loc in ("none", "left"):         # 'left' is the panel's y label (see _grouped_bars)
+    if not title or loc in ("none", "left", "right"):    # 'left'/'right': the panel's y label (see _grouped_bars)
         return
     fs = style.get("panel_title_fontsize")
     fs = fs if fs is not None else matplotlib.rcParams["axes.titlesize"]
@@ -539,13 +539,15 @@ def _grouped_bars(spec, style, data, warns):
         fig, ax = pp.subplots(f"{style['width_pt']}pt", height=f"{style['height_pt']}pt")
         axes = [ax]
     ymode = style.get("panel_ylabel", "each")
-    # panel_title_loc 'left': each panel's title is its (rotated) y label beside the ticks, and the y label is one
-    # figure-level label further left, shared by every panel (panel_ylabel does not apply)
-    titles_left = multi and style.get("panel_title_loc") == "left"
+    # panel_title_loc 'left' / 'right': each panel's title is its rotated y label (left: beside the ticks; right: at the
+    # right edge, reading top to bottom), and the y label is one figure-level label on the left shared by every panel
+    # (panel_ylabel does not apply)
+    title_side = style.get("panel_title_loc") if multi and style.get("panel_title_loc") in ("left", "right") else None
+    titles_aside = title_side is not None
     stats = []
     for pi, (ax, p) in enumerate(zip(axes, panels)):
         show_y = not multi or ymode == "each" or (ymode == "first" and pi == 0) or (ymode == "middle" and pi == n_p // 2)
-        ylabel = p.get("title") if titles_left else (style["ylabel"] if show_y else None)
+        ylabel = p.get("title") if titles_aside else (style["ylabel"] if show_y else None)
         _bars_panel(ax, t, style, p["levels"], p["arms"], base_colors, warns, stats,
                     ylabel, p.get("title") if multi else None)
     edge_w = t.bars.get("edge_width", 0)
@@ -563,10 +565,14 @@ def _grouped_bars(spec, style, data, warns):
     for pi, (ax, p) in enumerate(zip(axes, panels)):
         _bars_finish(fig, ax, t, style, p["levels"], warns, multi=multi, bottom=pi == n_p - 1,
                      title=p.get("title") if multi else None)
-        if titles_left:
+        if titles_aside:
             fs = style.get("panel_title_fontsize")
             ax.yaxis.label.set_fontsize(fs if fs is not None else matplotlib.rcParams["axes.titlesize"])
-    if titles_left and style.get("ylabel"):
+            if title_side == "right":
+                ax.yaxis.set_label_position("right")
+                ax.yaxis.label.set_rotation(270)
+                ax.yaxis.label.set_va("bottom")
+    if titles_aside and style.get("ylabel"):
         fs = style.get("ylabel_fontsize")
         fig.supylabel(style["ylabel"], fontsize=fs if fs is not None else matplotlib.rcParams["axes.labelsize"],
                       color=matplotlib.rcParams["axes.labelcolor"])
