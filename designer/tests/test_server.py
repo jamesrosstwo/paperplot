@@ -29,14 +29,14 @@ PAPERPLOT_ROOT = HERE.parent.parent
 if str(PAPERPLOT_ROOT) not in sys.path:
     sys.path.insert(0, str(PAPERPLOT_ROOT))
 
-LIVE_CLONE = Path(r"C:\Users\James\Desktop\4D_Curricula_RSS_overleaf").resolve()
+from designer.live_papers import is_live  # noqa: E402
 SCRATCH = Path(r"C:\Users\James\AppData\Local\Temp\claude\9119a02420dddb37\7a66152e-6919-48a8-b3a9-c4911b85a0e4"
                r"\scratchpad\designer_test")
 SCRATCH_PAPER = Path(os.environ.get("DESIGNER_TEST_PAPER", str(SCRATCH / "paper")))
 
 if "designer.config" in sys.modules:
     _cfg = sys.modules["designer.config"]
-    assert Path(_cfg.PAPER_ROOT).resolve() != LIVE_CLONE, "designer.config already points at the live clone"
+    assert not is_live(_cfg.PAPER_ROOT), "designer.config already points at the live clone"
 else:
     os.environ["DESIGNER_PAPER_ROOT"] = str(SCRATCH_PAPER)
     _state_parent = SCRATCH if SCRATCH.is_dir() else None
@@ -46,7 +46,7 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 
 from designer import config, jobs, server  # noqa: E402
 
-assert config.PAPER_ROOT.resolve() != LIVE_CLONE, "refusing to test against the live Overleaf clone"
+assert not is_live(config.PAPER_ROOT), "refusing to test against the live Overleaf clone"
 
 try:
     import pytest  # noqa: F401

@@ -25,8 +25,8 @@ if str(PAPERPLOT_ROOT) not in sys.path:
 
 from designer import config, latex, server  # noqa: E402
 
-LIVE = Path(config.LIVE_PAPER_WINDOWS).resolve()
-assert config.PAPER_ROOT.resolve() != LIVE, "refusing to test against the live Overleaf clone"
+from designer.live_papers import is_live  # noqa: E402
+assert not is_live(config.PAPER_ROOT), "refusing to test against the live Overleaf clone"
 STATIC = PAPERPLOT_ROOT / "designer" / "static"
 HOST = "127.0.0.1:8768"
 
@@ -244,7 +244,7 @@ def test_forward_without_pdf_is_null(client):
 
 def _scratch_with_synctex():
     root = Path(os.environ.get("DESIGNER_TEST_PAPER", ""))
-    if not root.is_dir() or root.resolve() == LIVE or not (root / "paper.synctex.gz").is_file():
+    if not root.is_dir() or is_live(root) or not (root / "paper.synctex.gz").is_file():
         pytest.skip("no compiled scratch paper with synctex")
     if not (root / "sections" / "03_method.tex").is_file():
         pytest.skip("scratch paper has no sections/03_method.tex")

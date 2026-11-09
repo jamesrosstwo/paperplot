@@ -19,13 +19,13 @@ os.environ.setdefault("DESIGNER_STATE_DIR", tempfile.mkdtemp(prefix="designer_st
 
 from designer import config, gitops  # noqa: E402
 
-LIVE = os.path.normcase(r"C:\Users\James\Desktop\4D_Curricula_RSS_overleaf")
+from designer.live_papers import is_live  # noqa: E402
 _TMPS = []
 _ORIG_ROOT = config.PAPER_ROOT  # restored in teardown so other test modules see the scratch clone
 
 
 def sh(repo, *args, check=True):
-    assert not os.path.normcase(str(repo)).startswith(LIVE)
+    assert not is_live(repo)
     r = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8")
     if check and r.returncode != 0:
         raise RuntimeError(f"git {args}: {r.stderr}")

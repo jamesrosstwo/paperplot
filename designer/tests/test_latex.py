@@ -23,8 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from designer import config, latex  # noqa: E402
 
-LIVE = Path(r"C:\Users\James\Desktop\4D_Curricula_RSS_overleaf").resolve()
-assert config.PAPER_ROOT != LIVE, "refusing to test against the live Overleaf clone"
+from designer.live_papers import is_live  # noqa: E402
+assert not is_live(config.PAPER_ROOT), "refusing to test against the live Overleaf clone"
 ROOT = config.PAPER_ROOT
 if not (ROOT / "paper.tex").is_file():
     try:
@@ -406,7 +406,7 @@ def test_boxes_stay_on_compiled_pdf_after_tex_edit():
         assert a["stale"] == fid.startswith("sections/04_experiments.tex"), (fid, a["stale"])
     assert not moved, moved
     # a single figure via locate() agrees
-    f = next(f for f in latex.scan_figures(root) if f["fid"].endswith("mug_ours_auxq2_levels_short"))
+    f = next(f for f in latex.scan_figures(root) if before.get(f["fid"]))     # any figure located before the edit
     one = latex.locate(f, root)
     assert one["page"] == before[f["fid"]]["page"] and abs(one["y"] - before[f["fid"]]["y"]) < 0.01
     # reverting the edit (newer mtime, same content as compiled) is not stale: latexmk would not recompile it

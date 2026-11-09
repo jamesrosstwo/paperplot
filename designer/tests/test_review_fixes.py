@@ -23,8 +23,8 @@ if str(PAPERPLOT_ROOT) not in sys.path:
 
 from designer import config, latex, server, spec  # noqa: E402
 
-LIVE = Path(config.LIVE_PAPER_WINDOWS).resolve()
-assert config.PAPER_ROOT.resolve() != LIVE, "refusing to test against the live Overleaf clone"
+from designer.live_papers import is_live  # noqa: E402
+assert not is_live(config.PAPER_ROOT), "refusing to test against the live Overleaf clone"
 STATIC = PAPERPLOT_ROOT / "designer" / "static"
 
 

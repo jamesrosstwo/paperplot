@@ -8,7 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]          # Desktop/paperplot
 sys.path.insert(0, str(ROOT))
-LIVE = Path(r"C:\Users\James\Desktop\4D_Curricula_RSS_overleaf").resolve()
+from designer.live_papers import is_live  # noqa: E402
 SCRATCH_PAPER = os.environ.get("DESIGNER_TEST_PAPER") or tempfile.mkdtemp(prefix="designer_paper_")  # see conftest.py
 if "designer.config" not in sys.modules:
     os.environ.setdefault("DESIGNER_PAPER_ROOT", SCRATCH_PAPER)
@@ -18,7 +18,7 @@ import yaml  # noqa: E402
 
 from designer import config, spec  # noqa: E402
 
-assert config.PAPER_ROOT != LIVE, "tests must not run against the live Overleaf clone"
+assert not is_live(config.PAPER_ROOT), "tests must not run against the live Overleaf clone"
 SEED = ROOT / "designer" / "seeds" / "mug_ours_auxq2_levels_short.yaml"
 SEED2 = ROOT / "designer" / "seeds" / "mug_difficulty_dataset.yaml"
 

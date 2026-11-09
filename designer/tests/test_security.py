@@ -20,8 +20,8 @@ import yaml
 from designer import config, datastore, gitops, latex, server, spec
 from designer.datastore import DataStoreError
 
-LIVE_CLONE = Path(config.LIVE_PAPER_WINDOWS).resolve()
-assert config.PAPER_ROOT.resolve() != LIVE_CLONE, "refusing to test against the live Overleaf clone"
+from designer.live_papers import is_live  # noqa: E402
+assert not is_live(config.PAPER_ROOT), "refusing to test against the live Overleaf clone"
 
 TOKEN = "test-token-" + "Zq81vR"          # a throwaway value for these tests only
 HOST = "127.0.0.1:8768"

@@ -56,7 +56,7 @@ def normalize_base_path(p: str | None) -> str:
 DESIGNER_DIR = Path(__file__).resolve().parent
 PAPERPLOT_ROOT = DESIGNER_DIR.parent                       # the folder that holds the paperplot package
 
-LIVE_PAPER_WINDOWS = r"C:\Users\James\Desktop\4D_Curricula_RSS_overleaf"
+from designer.live_papers import LIVE_PAPER_WINDOWS  # noqa: E402  (the Windows default paper root)
 
 
 def _paper_root() -> Path:

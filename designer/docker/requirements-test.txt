@@ -1,0 +1,2 @@
+# Test-only dependencies, installed by designer/docker/test.sh inside the designer image.
+pytest==9.2.0
