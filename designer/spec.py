@@ -98,8 +98,8 @@ def _arm_order_row():
                       "keep the listed order. n/a bars keep their slot."))
 
 
-def _grouped_bars_table():
-    return _head_rows() + [
+def _panel_rows():
+    return [
         ("panel_gap", "Panel gap (pt)", "slider", 6, "Panels",
          dict(min=0, max=60, step=0.5, help="data.panels: space between one panel's x labels and the next panel")),
         ("share_x_labels", "Shared x labels", "toggle", False, "Panels",
@@ -111,6 +111,11 @@ def _grouped_bars_table():
          dict(min=4, max=16, step=0.5, nullable=True, help="auto = theme title size")),
         ("panel_ylabel", "Panel y label", "dropdown", "each", "Panels",
          dict(options=_opts("each", "middle", "first"), help="Which panels carry the y label")),
+    ]
+
+
+def _grouped_bars_table():
+    return _head_rows() + _panel_rows() + [
         ("group_width", "Group width / group gap", "slider", 0.66, "Bars",
          dict(min=0.3, max=1.0, step=0.005, help="Fraction of each group slot the bars span; the space between groups "
                                                  "is 1 - this (0.66 leaves a 0.34 gap)")),
@@ -193,7 +198,7 @@ def _grouped_bars_table():
 
 def _lines_table():
     """Defaults reproduce figures/difficulty.py::by_task (Fig. 4)."""
-    return _head_rows(252, 105.84) + [
+    return _head_rows(252, 105.84) + _panel_rows() + [
         ("line_width", "Line width (pt)", "slider", 1.2, "Lines", dict(min=0.2, max=4.0, step=0.05)),
         ("marker", "Marker", "dropdown", "s", "Lines",
          dict(options=[{"value": "s", "label": "square"}, {"value": "o", "label": "circle"},
@@ -316,7 +321,7 @@ DATA_SCHEMA = {
     "count": "[successes, trials] | [successes, trials, {dup: true}] | {k, n, dup?} | null (not evaluated: n/a). "
              "dup = positions re-run (latest rollout counted): its interval is drawn in style.dup_ci_color.",
     "inline": "{source: inline, levels: [names], arms: [{name, color, hatch?, counts: [count per level]}]}",
-    "panels": "grouped_bars only: {source: inline, levels: [default levels], arms: [{name, color, hatch?}] (shared: "
+    "panels": "grouped_bars and lines: {source: inline, levels: [default levels], arms: [{name, color, hatch?}] (shared: "
               "colors and slots), panels: [{title, levels?, arms: [{name, counts}]}]}; panels are stacked "
               "vertically, arms matched by name, an arm missing from a panel is n/a there.",
     "dataset": "{source: dataset, dataset: name, query: {level, arm, successes, trials, filter?, levels?, arms?}}",
@@ -590,10 +595,10 @@ def _check_arm_list(arms, where, errors, sw, need_color=True):
 
 
 def _check_panels(data, kind, errors, sw):
-    """data.panels (grouped_bars, inline): returns the arm names (shared list, or every panel's in order)."""
+    """data.panels (inline): returns the arm names (shared list, or every panel's in order)."""
     panels = data.get("panels")
-    if kind != "grouped_bars":
-        errors.append(f"data.panels: only grouped_bars has panels (kind {kind})")
+    if kind not in ("grouped_bars", "lines"):
+        errors.append(f"data.panels: kind {kind} has no panels")
     if not isinstance(panels, list) or not panels:
         errors.append("data.panels: must be a non-empty list of {title, levels?, arms}")
         return []

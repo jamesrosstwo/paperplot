@@ -602,21 +602,33 @@ def _grouped_bars(spec, style, data, warns):
         _bars_finish(fig, ax, t, style, p["levels"], warns, multi=multi, bottom=pi == n_p - 1,
                      title=p.get("title") if multi else None)
         if titles_aside:
-            fs = style.get("panel_title_fontsize")
-            ax.yaxis.label.set_fontsize(fs if fs is not None else matplotlib.rcParams["axes.titlesize"])
-            if title_side == "right":                  # same reading direction as the shared y label (bottom to top)
-                ax.yaxis.set_label_position("right")
-    if titles_aside and style.get("ylabel"):
-        fs = style.get("ylabel_fontsize")
-        fig.supylabel(style["ylabel"], fontsize=fs if fs is not None else matplotlib.rcParams["axes.labelsize"],
-                      color=matplotlib.rcParams["axes.labelcolor"])
+            _aside_title_label(ax, style, title_side)
+    if titles_aside:
+        _shared_ylabel(fig, style)
     _tidy_and_check(fig, axes, max(len(p["levels"]) for p in panels), warns)
     return fig, stats
 
 
 # --------------------------------------------------------------------------- lines
+def _aside_title_label(ax, style, side):
+    """panel_title_loc left/right: the panel title is the y label; size it and move it to the chosen side."""
+    fs = style.get("panel_title_fontsize")
+    ax.yaxis.label.set_fontsize(fs if fs is not None else matplotlib.rcParams["axes.titlesize"])
+    if side == "right":                                # same reading direction as the shared y label (bottom to top)
+        ax.yaxis.set_label_position("right")
+
+
+def _shared_ylabel(fig, style):
+    """One figure-level y label on the left, shared by every panel (with panel titles left/right)."""
+    if style.get("ylabel"):
+        fs = style.get("ylabel_fontsize")
+        fig.supylabel(style["ylabel"], fontsize=fs if fs is not None else matplotlib.rcParams["axes.labelsize"],
+                      color=matplotlib.rcParams["axes.labelcolor"])
+
+
 def _lines(spec, style, data, warns):
-    """One line per arm over categorical levels (figures/difficulty.py::by_task generalised)."""
+    """One line per arm over categorical levels (figures/difficulty.py::by_task generalised); with data.panels, one
+    stacked panel per entry (one legend, one global arm order), like grouped_bars."""
     t = _activate(style, warns)
     rc = {}
     for skey, rkey in (("xtick_fontsize", "xtick.labelsize"), ("tick_fontsize", "ytick.labelsize"),
@@ -624,26 +636,67 @@ def _lines(spec, style, data, warns):
         if style.get(skey) is not None:          # pp.use() above resets every one of these on the next render
             rc[rkey] = style[skey]
     matplotlib.rcParams.update(rc)
-    levels, arms = data["levels"], data["arms"]
-    if not levels or not arms:
+    panels, multi = _panels_of(data)
+    shared = data["arms"]
+    if not shared or any(not p["levels"] for p in panels):
         raise ValueError("nothing to plot: no levels or no arms")
-    base_colors = _arm_colors(t, style, arms, warns)
-    order = arm_order(style, [a["name"] for a in arms], [_cells(a) for a in arms])
-    arms = [arms[i] for i in order]
+    base_colors = _arm_colors(t, style, shared, warns)
+    cells = [[c for p in panels for c in _cells(p["arms"][i])] for i in range(len(shared))]
+    order = arm_order(style, [a["name"] for a in shared], cells)
+    shared = [shared[i] for i in order]
     base_colors = [base_colors[i] for i in order]
-    fig, ax = pp.subplots(f"{style['width_pt']}pt", height=f"{style['height_pt']}pt")
+    panels = [dict(p, arms=[p["arms"][i] for i in order]) for p in panels]
+    n_p = len(panels)
+    if multi:
+        fig, axes = pp.subplots(f"{style['width_pt']}pt", height=f"{style['height_pt']}pt", nrows=n_p, squeeze=False)
+        axes = list(axes[:, 0])
+        gap = style.get("panel_gap")
+        if n_p > 1 and gap:      # constrained layout: each inner gap = hspace / nrows of the figure height
+            fig.get_layout_engine().set(hspace=n_p * float(gap) / float(style["height_pt"]))
+    else:
+        fig, ax = pp.subplots(f"{style['width_pt']}pt", height=f"{style['height_pt']}pt")
+        axes = [ax]
+    loc = style.get("panel_title_loc")
+    side = loc if multi and loc in ("left", "right") else None
+    ymode = style.get("panel_ylabel", "each")
+    stats, first_line = [], {}
+    for pi, (ax, p) in enumerate(zip(axes, panels)):
+        title = p.get("title") if multi else None
+        for i, line in _lines_panel(ax, t, style, p["levels"], p["arms"], base_colors, warns, stats, title).items():
+            first_line.setdefault(i, line)
+        show_y = not multi or ymode == "each" or (ymode == "first" and pi == 0) or (ymode == "middle" and pi == n_p // 2)
+        _lines_axes(ax, t, style, p["levels"], title if side else (style.get("ylabel") if show_y else None))
+        if multi and pi != n_p - 1 and style.get("share_x_labels"):
+            ax.tick_params(axis="x", labelbottom=False)
+        if side:
+            _aside_title_label(ax, style, side)
+        elif title:
+            _panel_title(fig, ax, style, title)
+    for i in range(len(shared)):
+        if i not in first_line:
+            warns.append(f"arm {shared[i]['name']!r} has no data; left out of the legend")
+    shown = sorted(first_line)
+    _legend(axes[0] if style["legend_loc"] == "above" else axes[n_p // 2], [first_line[i] for i in shown],
+            [shared[i]["name"] for i in shown], style, default_align="right")
+    if side:
+        _shared_ylabel(fig, style)
+    _tidy_and_check(fig, axes, max(len(p["levels"]) for p in panels), warns)
+    return fig, stats
+
+
+def _lines_panel(ax, t, style, levels, arms, base_colors, warns, stats, panel):
+    """The lines and intervals of one panel; returns {arm index: its line} for the arms drawn here."""
     x = np.arange(len(levels))
     partial_color = t.resolve(style["partial_ci_color"], "style.partial_ci_color")
     dup_color = t.resolve(style["dup_ci_color"], "style.dup_ci_color")
     out_of = style.get("out_of")
-    stats, handles, names = [], [], []
-    for arm, base in zip(arms, base_colors):
+    drawn = {}
+    for ai, (arm, base) in enumerate(zip(arms, base_colors)):
         color = _darken(base, style["fill_darken"])
         parts = [_spec.count_parts(c) for c in arm["counts"]]
         ys = np.array([np.nan if c is None else 100 * c[0] / c[1] for c in parts])
         have = ~np.isnan(ys)
         if not have.any():
-            warns.append(f"arm {arm['name']!r} has no data; left out of the legend")
             continue
         kw = dict(color=color, marker=None if style["marker"] == "none" else style["marker"],
                   markersize=style["marker_size"], linewidth=style["line_width"], label=arm["name"], clip_on=False,
@@ -654,8 +707,7 @@ def _lines(spec, style, data, warns):
             line, = ax.plot(x[have], ys[have], **kw)
         else:
             line, = ax.plot(x, ys, **kw)
-        handles.append(line)
-        names.append(arm["name"])
+        drawn[ai] = line
         los, his = [], []
         for j, c in enumerate(parts):
             if c is None:
@@ -665,14 +717,16 @@ def _lines(spec, style, data, warns):
             k, n, dup = c
             lo, hi = interval(k, n, style["ci"], style["ci_level"])
             row = {"level": levels[j], "arm": arm["name"], "k": k, "n": n, "rate": k / n, "lo": lo, "hi": hi}
+            if panel is not None:
+                row["panel"] = panel
             if dup:
                 row.update(dup=True, note=_spec.DUP_NOTE)
             stats.append(row)
             ecolor, partial = _ci_color_for(style, n, dup, color, partial_color, dup_color)
             if partial:
-                warns.append(f"{_where(arm['name'], levels[j], None)}: partial ({k}/{n})")
+                warns.append(f"{_where(arm['name'], levels[j], panel)}: partial ({k}/{n})")
             if style["y_mode"] == "count" and out_of and n != out_of and not partial:
-                warns.append(f"{_where(arm['name'], levels[j], None)}: {k}/{n} drawn at its rate on a /{out_of} axis")
+                warns.append(f"{_where(arm['name'], levels[j], panel)}: {k}/{n} drawn at its rate on a /{out_of} axis")
             los.append(np.nan if lo is None else 100 * lo)
             his.append(np.nan if hi is None else 100 * hi)
             if lo is not None and style["ci_style"] == "whiskers":
@@ -685,6 +739,12 @@ def _lines(spec, style, data, warns):
             sel = have if style["gap_mode"] == "join" else np.ones_like(have)
             ax.fill_between(x[sel], lo_a[sel], hi_a[sel], color=color, alpha=style["band_alpha"], linewidth=0,
                             zorder=2)
+    return drawn
+
+
+def _lines_axes(ax, t, style, levels, ylabel):
+    """Ticks, limits, spines, grid and y label of one line panel."""
+    x = np.arange(len(levels))
     ax.set_xticks(x, levels)
     xm = style["x_margin"]
     ax.set_xlim(-xm, len(levels) - 1 + xm)
@@ -697,17 +757,14 @@ def _lines(spec, style, data, warns):
     elif style["bottom_spine"] == "none":
         ax.spines["bottom"].set_visible(False)
     ax.set_ylim(0, 100)
-    if style.get("ylabel"):
+    if ylabel:
         if style.get("ylabel_fontsize") is not None:
-            ax.set_ylabel(style["ylabel"], fontsize=style["ylabel_fontsize"])
+            ax.set_ylabel(ylabel, fontsize=style["ylabel_fontsize"])
         else:
-            ax.set_ylabel(style["ylabel"])
+            ax.set_ylabel(ylabel)
     if style.get("grid_color") is not None or style.get("grid_width") is not None:
         ax.grid(True, axis="y", color=grid_color, linewidth=grid_width)
     _y_formatter(ax, style)
-    _legend(ax, handles, names, style, default_align="right")
-    _tidy_and_check(fig, [ax], len(levels), warns)
-    return fig, stats
 
 
 def _overlaps(a, b) -> bool:

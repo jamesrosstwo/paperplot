@@ -388,7 +388,7 @@ def test_panel_and_order_validation():
     assert any("arm_order.fixed" in e for e in errs(lambda t: t["style"]["arm_order"].update(fixed=["Ours", "x"])))
     assert any("arm_order.rest" in e for e in errs(lambda t: t["style"]["arm_order"].update(rest="best")))
     assert any("unknown key" in e for e in errs(lambda t: t["data"]["panels"][0].update(colour="x")))
-    assert any("only grouped_bars" in e for e in errs(lambda t: t.update(kind="lines", style={})))
+    assert not any("data.panels" in e for e in errs(lambda t: t.update(kind="lines", style={})))   # lines stack too
     assert any("level_colors" in e for e in errs(lambda t: t["style"].update(level_colors={"Nominal": "nocolor"})))
     # without a shared arm list each arm needs a color on some panel entry
     t = copy.deepcopy(good)
@@ -486,9 +486,62 @@ LINES_COMBOS = {
 }
 
 
+# panel keys of lines: tested on stacked panels in test_lines_panels
+LINES_PANEL_KEYS = {"panel_gap", "share_x_labels", "panel_title_loc", "panel_title_fontsize", "panel_ylabel"}
+
+
+def lines_panels_seed():
+    """The panel seed's data drawn as stacked line charts."""
+    s = load_seed("mug_baselines_panels")
+    return {"id": "lines_panels", "kind": "lines", "title": "", "output": "figures/evals/lines_panels.pdf",
+            "data": s["data"], "style": dict(spec.defaults("lines"), height_pt=270, arm_order=s["style"]["arm_order"])}
+
+
+def test_lines_panels():
+    s = lines_panels_seed()
+    assert spec.validate(s) == [], spec.validate(s)
+    fig, stats, warns = _draw(s)
+    try:
+        axes = fig.axes
+        assert len(axes) == 3
+        assert sum(ax.get_legend() is not None for ax in axes) == 1
+        names = lambda ax: [l.get_label() for l in ax.get_lines() if not l.get_label().startswith("_")]
+        assert names(axes[0]) == [BASE, "Ours", "RoboEngine", "Classical", "ZeroNVS"]     # one global order
+        assert names(axes[1]) == names(axes[2]) == [BASE]                               # arms without data skipped
+        legend = [t.get_text() for t in axes[0].get_legend().get_texts()]
+        assert legend == [BASE, "Ours", "RoboEngine", "Classical", "ZeroNVS"]
+        assert {st["panel"] for st in stats} == {"Mug", "Push-T", "Rope"}
+        assert sorted((st["panel"], st["level"]) for st in stats if st.get("dup") and st["arm"] == BASE) == [
+            ("Mug", "Easy"), ("Mug", "Nominal"), ("Push-T", "Easy"), ("Rope", "Easy"), ("Rope", "Nominal")]
+        assert not any("no data" in w for w in warns)
+    finally:
+        render.plt.close(fig)
+    # right-hand titles, one shared y label, x labels only at the bottom
+    s["style"].update(panel_title_loc="right", share_x_labels=True, ylabel="Success rate (n=20)")
+    fig, _, _ = _draw(s)
+    try:
+        axes = fig.axes
+        assert [ax.get_ylabel() for ax in axes] == ["Mug", "Push-T", "Rope"]
+        assert {ax.yaxis.get_label_position() for ax in axes} == {"right"}
+        assert fig._supylabel.get_text() == "Success rate (n=20)"
+        fig.canvas.draw()
+        assert [any(t.get_visible() and t.get_text() for t in ax.get_xticklabels()) for ax in axes] == [
+            False, False, True]
+    finally:
+        render.plt.close(fig)
+    # every panel key changes the picture
+    base = render.preview_png(lines_panels_seed(), dpi=60)
+    for k, v in {"panel_gap": 20, "share_x_labels": True, "panel_title_loc": "above left",
+                 "panel_title_fontsize": 12, "panel_ylabel": "middle"}.items():
+        t = lines_panels_seed()
+        t["style"][k] = v
+        assert spec.validate(t) == [], (k, spec.validate(t))
+        assert render.preview_png(t, dpi=60) != base, f"style.{k} = {v!r} did not change the stacked lines"
+
+
 def test_lines_keys_are_honoured():
-    assert set(LINES_CHANGES) | set(LINES_COMBOS) == set(spec.defaults("lines")), \
-        set(spec.defaults("lines")) ^ (set(LINES_CHANGES) | set(LINES_COMBOS))
+    assert set(LINES_CHANGES) | set(LINES_COMBOS) | LINES_PANEL_KEYS == set(spec.defaults("lines")), \
+        set(spec.defaults("lines")) ^ (set(LINES_CHANGES) | set(LINES_COMBOS) | LINES_PANEL_KEYS)
     base = render.preview_png(load_seed("difficulty_by_task"), dpi=80)
     for k, v in LINES_CHANGES.items():
         s = load_seed("difficulty_by_task")
