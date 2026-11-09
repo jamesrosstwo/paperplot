@@ -10,6 +10,8 @@ figure to the paper's (Overleaf) git repo when happy. The full build contract is
   (see [docker/README.md](docker/README.md)).
 - Nothing is pushed automatically: Push runs only from an explicit, confirmed click. Pull is `--ff-only`, never force.
 - Data is never copied: the data store records absolute paths and (optionally) makes a junction/symlink.
+- Source of truth: [github.com/jamesrosstwo/paperplot](https://github.com/jamesrosstwo/paperplot); the service runs in
+  Docker on borabora ([docker/README.md](docker/README.md)). Run it natively only from a clone of that repo.
 
 ## Requirements
 
@@ -24,10 +26,13 @@ figure to the paper's (Overleaf) git repo when happy. The full build contract is
   missing. `GET /api/fonts/check` lists whether each theme's primary font resolves. (STIX for math glyphs that Roboto
   Slab lacks, e.g. pi, is intended and stays.)
 
-## Run locally (Windows)
+## Run locally (Windows, optional)
+
+From a local clone of the repo (the old `Desktop\paperplot` copy is retired; the default paper root on Windows is
+still the Overleaf clone at `C:\Users\James\Desktop\4D_Curricula_RSS_overleaf`):
 
 ```bat
-cd C:\Users\James\Desktop\paperplot
+cd <your clone of jamesrosstwo/paperplot>
 set PYTHONUTF8=1
 C:\ProgramData\anaconda3\python.exe -m designer
 ```

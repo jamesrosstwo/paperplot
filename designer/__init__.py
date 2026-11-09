@@ -1,1 +1,1 @@
-"""Plot designer: design paperplot figures inside the RSS paper. Run from Desktop\\paperplot: python -m designer"""
+"""Plot designer: design paperplot figures inside the RSS paper. Run from the repo root: python -m designer"""

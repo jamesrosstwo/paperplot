@@ -1,5 +1,9 @@
 # Plot designer — build contract
 
+> Historical: this contract was written for the original Windows build. The code now lives in
+> [github.com/jamesrosstwo/paperplot](https://github.com/jamesrosstwo/paperplot) and runs as a Docker service on
+> borabora (`designer/docker/README.md`); Windows paths below describe that first build, not the current setup.
+
 A local web app for designing paperplot figures *inside* the RSS paper. The user moves sliders and dropdowns,
 sees the plot redraw in place on the compiled paper page, edits the TeX around it, recompiles the paper, and
 commits the figure to the Overleaf git repo when happy.

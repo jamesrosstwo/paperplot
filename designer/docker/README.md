@@ -6,25 +6,20 @@ the designer state, data and git credentials are **mounted at runtime**; none of
 
 ## Deploy on borabora (step by step)
 
-Everything below runs as `james` (uid/gid 1002) on borabora, except steps 1 and 6, which run in Git Bash on Windows.
-Port 8766 is already taken on borabora, so the designer is published on **127.0.0.1:8797** (loopback only); pick any
-other free port if that one is in use (`ss -ltn`).
+Everything below runs as `james` (uid/gid 1002) on borabora. The code comes from
+[github.com/jamesrosstwo/paperplot](https://github.com/jamesrosstwo/paperplot), which is the source of truth.
 
-**1. Copy the code** (Windows Git Bash; `paperplot` is not a git repo, so it is copied, not cloned):
+**1. Get the code:**
 
 ```bash
-tar -C /c/Users/James/Desktop/paperplot -cf - --exclude=__pycache__ --exclude=.pytest_cache --exclude=.cache \
-    --exclude=designer/data --exclude=designer/specs --exclude=designer/tests/out \
-    .dockerignore designer paperplot | ssh borabora 'mkdir -p ~/paperplot && tar -xf - -C ~/paperplot'
+git clone git@github.com:jamesrosstwo/paperplot.git ~/paperplot
 ```
 
-`designer/specs` and `designer/data` are the Windows designer's own state; they stay on Windows.
-
-**2. Paper clone, state dir, data dir, token** (borabora):
+**2. Paper clone, state dir, data dir, token, settings:**
 
 ```bash
 git clone https://git.overleaf.com/<project-id> ~/paper-rss     # its own clone: the container writes into it
-mkdir -p ~/designer_state                                       # specs, data registry, cache (survives upgrades)
+mkdir -p ~/designer_state ~/designer_data                       # state (specs, data registry, cache); data tables
 umask 077; mkdir -p ~/.config && openssl rand -hex 24 > ~/.config/plot-designer.token
 ```
 
@@ -32,62 +27,57 @@ For Push, put the Overleaf git token in `~/.git-credentials` (`https://git:<over
 600) rather than in the clone's remote URL. Data dirs are any directories holding tables you want to plot (e.g. eval
 TSVs); they are mounted read-only and are the only places datasets can be registered from.
 
-**3. Build** (cached rebuilds take ~20 s; the first one ~2 min):
+Then write the deployment settings to `~/.config/plot-designer.env` (mode 600; read by `redeploy.sh`, passed to
+`run.sh`):
 
 ```bash
-cd ~/paperplot && designer/docker/build.sh          # -> paperplot-designer:latest, for $(id -u):$(id -g)
+PAPER_DIR=$HOME/paper-rss
+STATE_DIR=$HOME/designer_state
+DATA_DIRS=$HOME/designer_data              # space-separated; each mounted read-only at the same path
+GIT_CREDENTIALS=$HOME/.git-credentials     # drop this line to run without push access
+DESIGNER_GIT_NAME=James
+DESIGNER_GIT_EMAIL=<email>
+PUBLISH=100.92.86.90:8797                  # tailnet address only; 127.0.0.1:8797 for loopback + ssh tunnel
 ```
 
-**4. Run:**
+**3. Build, test and start:**
 
 ```bash
-cd ~/paperplot
-DESIGNER_TOKEN=$(cat ~/.config/plot-designer.token) \
-PAPER_DIR=~/paper-rss STATE_DIR=~/designer_state DATA_DIRS="/path/to/data1 /path/to/data2" \
-GIT_CREDENTIALS=~/.git-credentials DESIGNER_GIT_NAME="James Ross" DESIGNER_GIT_EMAIL=<email> \
-PUBLISH=127.0.0.1:8797 designer/docker/run.sh
+cd ~/paperplot && designer/docker/redeploy.sh
 ```
 
-`run.sh` starts the container `paperplot-designer` with `--restart unless-stopped`, mounts each data dir read-only at
-the same absolute path and sets `DESIGNER_DATA_ROOTS` to them. Drop `GIT_CREDENTIALS` to run without push access.
+It builds `paperplot-designer:latest` (cached rebuilds take seconds, the first one ~2 min), runs the test suite in
+the new image, replaces the container `paperplot-designer` (`--restart unless-stopped`) and waits until it is
+healthy. A failed build or test run leaves the running container untouched. `--skip-tests` skips the tests.
 
-**5. Check it:**
+**4. Check it:**
 
 ```bash
-docker ps --filter name=paperplot-designer          # STATUS shows (healthy) after a few seconds
-curl -s 127.0.0.1:8797/healthz                      # {"ok":true,...,"paper_root_exists":true,"latex_found":true}
+docker ps --filter name=paperplot-designer          # STATUS shows (healthy)
+curl -s 100.92.86.90:8797/healthz                   # {"ok":true,...,"paper_root_exists":true,"latex_found":true}
 docker logs -f paperplot-designer
 ```
 
-**6. Use it from Windows:** open a tunnel and sign in once.
+**5. Use it:** open `http://100.92.86.90:8797/?token=<token>` once (token in `~/.config/plot-designer.token`); the
+browser keeps an HttpOnly cookie for 30 days. Scripts use `Authorization: Bearer <token>`. With a loopback
+`PUBLISH`, tunnel first: `ssh -N -L 8797:127.0.0.1:8797 borabora`.
 
-```bash
-ssh -N -L 8797:127.0.0.1:8797 borabora              # leave running
-```
-
-Open <http://127.0.0.1:8797/> in a browser: it sends you to the sign-in form; paste the token from
-`~/.config/plot-designer.token`. The browser keeps an HttpOnly cookie for 30 days. Scripts use
-`Authorization: Bearer <token>`. To reach it over the tailnet without a tunnel, see "Exposing it over the tailnet".
-
-**Upgrade** (after editing the code on Windows): repeat step 1, then
-
-```bash
-cd ~/paperplot && designer/docker/build.sh && docker rm -f paperplot-designer && <the run.sh command from step 4>
-```
+**Change the code:** edit in `~/paperplot`, run `designer/docker/test.sh`, commit, `designer/docker/redeploy.sh`,
+`git push`. Spec edits need none of this: specs live in the state dir and are read on every render.
 
 **Stop:** `docker rm -f paperplot-designer` (the state, paper clone and data are untouched).
 
 **A read-only instance for others** (look, preview, recompile; no edits, no git): run a second container with its own
 name, port and state dir, e.g. `NAME=paperplot-designer-ro PUBLISH=127.0.0.1:8798 STATE_DIR=~/designer_state_ro
-DESIGNER_READONLY=1 DESIGNER_TOKEN=<another token>` plus the same `PAPER_DIR`, and no `GIT_CREDENTIALS`.
+DESIGNER_READONLY=1 DESIGNER_TOKEN=<another token>` plus the same `PAPER_DIR`, and no `GIT_CREDENTIALS`, via `run.sh`.
 
 Things to know:
 
 - One container per paper clone: compiles and renders are serialized inside one process only.
-- Datasets registered in the Windows designer (`C:\...` paths) do not exist on borabora; register them again from the
-  data drawer by their borabora path (inside one of `DATA_DIRS`).
+- Datasets are registered by their borabora path (inside one of `DATA_DIRS`) from the data drawer.
 - Figures and TeX edits made in the container land in `~/paper-rss`; commit and push them from the designer (or with
-  git on borabora). Pull in your Windows clone as usual.
+  git on borabora). Commit to Overleaf from one place only, or the histories diverge.
+- Seeds (`designer/seeds/`) and test fixtures hold made-up data; real specs stay in the state dir.
 
 ## Files here
 
@@ -96,7 +86,10 @@ Things to know:
 | `Dockerfile` | the image (build context = the `paperplot` folder) |
 | `docker-compose.yml` | the service, with env-var placeholders for every mount |
 | `build.sh` / `run.sh` | Linux: build with your uid/gid; run with `docker run` |
-| `build.ps1` / `run.ps1` | Windows (Docker Desktop) equivalents |
+| `redeploy.sh` | build, test, replace the container, wait until healthy (settings: `~/.config/plot-designer.env`) |
+| `test.sh` | run the test suite inside the image; `--update-references` re-renders the reference images |
+| `requirements-test.txt` | test-only dependencies, installed by `test.sh` inside a throwaway container |
+| `build.ps1` / `run.ps1` | Windows (Docker Desktop) equivalents, for a local clone |
 | `entrypoint.sh` | git author + read-only credentials from env/mounts, token check, then exec |
 | `check_fonts.py` | fails unless matplotlib finds Times New Roman and Roboto Slab with no fallback |
 | `healthcheck.py` | Docker HEALTHCHECK on `/healthz` |
