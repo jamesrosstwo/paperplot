@@ -1,0 +1,11 @@
+# ACME colours and bar styling, set in Times New Roman (the paper's typeface).
+# Used by the bar and line plots; the camera figures stay on `acme`.
+extends: acme
+
+font:
+  family: serif
+  serif: [Times New Roman, STIXGeneral, DejaVu Serif]
+  math: stix              # Times-like math, so pi matches the text
+  # Sizes are inherited (8 pt labels, 6 pt ticks and legend, 5 pt y ticks). Setting every size
+  # to 12 was tried on 2026-10-06: at the 252 pt and 516 pt widths the tick labels, titles and
+  # legends overlap, so 12 pt needs taller figures and fewer ticks, not just this block.

@@ -1,0 +1,16 @@
+# Plot designer (and the paperplot library it imports). Python 3.10 - 3.12.
+# These are the versions the designer is developed and tested with (Anaconda, Python 3.12 on Windows); each has
+# wheels for CPython 3.10, 3.11 and 3.12 on Linux and Windows.
+#   pip install -r designer/requirements.txt
+flask==3.0.3            # pulls werkzeug 3.0.x, jinja2, itsdangerous, click, blinker
+werkzeug==3.0.3
+matplotlib==3.8.4
+numpy==1.26.4           # < 2: matched to matplotlib 3.8 / pandas 2.2 / scipy 1.13 as tested
+pandas==2.2.2
+scipy==1.13.1           # paperplot.stats (Bayesian rate intervals)
+pyyaml==6.0.1
+# Production WSGI server for `serve.py --prod` (optional: without it the server falls back to Flask's threaded
+# server, and only on a loopback address). 3.0.1+ has the fixes for CVE-2024-49768 / CVE-2024-49769.
+waitress==3.0.2
+# Not pip packages, needed on the machine: a TeX distribution with latexmk, pdflatex, synctex and bibtex
+# (MiKTeX on Windows, TeX Live on Linux), git, and the paper's fonts (see designer/README.md).

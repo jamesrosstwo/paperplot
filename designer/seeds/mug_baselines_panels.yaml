@@ -1,0 +1,108 @@
+# Seed spec (copied once into a designer state dir; never edited by a running designer).
+# Example data: made-up counts. [k, n, {dup: true}] = a cell with re-run positions: its interval is drawn in
+# style.dup_ci_color (yellow). null = not evaluated (n/a).
+# Three stacked panels (Mug / Push-T / Rope), one global arm order: the fixed arms first, the rest by pooled
+# success rate over every evaluated cell.
+id: mug_baselines_panels
+kind: grouped_bars
+title: Mug / Push-T / Rope successes by difficulty, base vs Classical, ZeroNVS, RoboEngine and ours
+output: figures/evals/mug_baselines_panels.pdf
+data:
+  source: inline
+  levels: [Nominal, Easy, Medium]
+  arms:
+  - name: $\mathrm{\pi}_{0.5}$ (base policy)
+    color: tol-blue
+  - name: Ours
+    color: tol-red
+  - name: RoboEngine
+    color: tol-green
+  - name: Classical
+    color: tol-yellow
+  - name: ZeroNVS
+    color: tol-purple
+  panels:
+  - title: Mug
+    arms:
+    - name: $\mathrm{\pi}_{0.5}$ (base policy)
+      counts: [[16, 20, {dup: true}], [12, 20, {dup: true}], [9, 20]]
+    - name: Classical
+      counts: [[3, 5], [3, 10], null]
+    - name: ZeroNVS
+      counts: [null, [5, 20], null]
+    - name: RoboEngine
+      counts: [[13, 20, {dup: true}], [11, 20], null]
+    - name: Ours
+      counts: [[17, 20], [15, 20], [14, 20]]
+  - title: Push-T
+    arms:
+    - name: $\mathrm{\pi}_{0.5}$ (base policy)
+      counts: [[15, 20], [4, 20, {dup: true}], null]
+    - name: Classical
+      counts: [null, null, null]
+    - name: ZeroNVS
+      counts: [null, null, null]
+    - name: RoboEngine
+      counts: [null, null, null]
+    - name: Ours
+      counts: [null, null, null]
+  - title: Rope
+    arms:
+    - name: $\mathrm{\pi}_{0.5}$ (base policy)
+      counts: [[17, 20, {dup: true}], [13, 20, {dup: true}], null]
+    - name: Classical
+      counts: [null, null, null]
+    - name: ZeroNVS
+      counts: [null, null, null]
+    - name: RoboEngine
+      counts: [null, null, null]
+    - name: Ours
+      counts: [null, null, null]
+style:
+  theme: acme
+  font_family: null
+  width_pt: 400
+  height_pt: 366
+  panel_gap: 6
+  share_x_labels: false
+  panel_title_loc: upper right
+  panel_title_fontsize: 12
+  panel_ylabel: each
+  group_width: 0.8
+  bar_fill: 0.631
+  edge_width: 1.5
+  na_label: n/a
+  arm_order:
+    fixed: ['$\mathrm{\pi}_{0.5}$ (base policy)', Ours]
+    rest: pooled
+  level_sort: none
+  level_pin_first: 0
+  legend_loc: none
+  legend_align: center
+  legend_cols: 3
+  legend_fontsize: 12
+  legend_box_fontsize: null
+  legend_pad: 0.0
+  tick_fontsize: 8
+  xtick_fontsize: 12
+  xtick_rotation: 0
+  ylabel: Successes
+  ylabel_fontsize: 12
+  y_mode: count
+  out_of: 20
+  ytick_step: 25
+  divider_before: null
+  divider_style: ci
+  ci: wilson
+  ci_level: 0.95
+  ci_color: '#222222'
+  ci_linewidth: 0.6
+  ci_capsize: 1.5
+  partial_below: 20
+  partial_ci_color: '#CC3311'
+  dup_ci_color: '#DDAA33'
+  palette: null
+  level_colors: null
+  fill_darken: 0.7
+  edge_darken: 0.6
+  transparent: false

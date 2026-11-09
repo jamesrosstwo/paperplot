@@ -1,0 +1,55 @@
+# Seed spec with made-up example counts: grouped bars, base vs baselines and ours over difficulty levels.
+id: mug_ours_auxq2_levels_short
+kind: grouped_bars
+title: Mug successes by difficulty, base vs Classical, ZeroNVS, RoboEngine and ours
+output: figures/evals/mug_ours_auxq2_levels_short.pdf
+data:
+  source: inline
+  levels: [Nominal, Easy, Medium]
+  arms:
+  - name: $\mathrm{\pi}_{0.5}$ (base policy)
+    color: tol-blue
+    counts: [[16, 20], [12, 20], [9, 20]]
+  - name: Classical
+    color: tol-yellow
+    counts: [[3, 5], [3, 10], null]
+  - name: ZeroNVS
+    color: tol-purple
+    counts: [null, [5, 20], null]
+  - name: RoboEngine
+    color: tol-green
+    counts: [[17, 29], [11, 20], null]
+  - name: Ours
+    color: tol-red
+    counts: [[17, 20], [15, 20], [14, 20]]
+style:
+  theme: acme
+  font_family: null
+  width_pt: 252
+  height_pt: 69
+  group_width: 0.66
+  bar_fill: 0.583
+  edge_width: null
+  na_label: n/a
+  legend_loc: above
+  legend_cols: 5
+  legend_fontsize: 6
+  tick_fontsize: null
+  xtick_fontsize: 7
+  ylabel: Successes
+  ylabel_fontsize: null
+  y_mode: count
+  out_of: 20
+  ytick_step: 25
+  divider_before: null
+  ci: wilson
+  ci_level: 0.95
+  ci_color: '#222222'
+  ci_linewidth: 0.6
+  ci_capsize: 1.5
+  partial_below: 20
+  partial_ci_color: '#CC3311'
+  palette: null
+  fill_darken: 0.7
+  edge_darken: 0.6
+  transparent: false

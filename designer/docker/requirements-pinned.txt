@@ -1,0 +1,25 @@
+# Python deps of the designer image (scipy: paperplot.stats imports it), pinned to James's Windows Anaconda env (Python 3.12.4) so that
+# Linux renders match the Windows ones as closely as possible. designer/requirements.txt (if present)
+# is installed on top of this in the Dockerfile.
+flask==3.0.3
+jinja2==3.1.4
+matplotlib==3.8.4
+numpy==1.26.4
+pandas==2.2.2
+pyyaml==6.0.1
+scipy==1.13.1
+waitress==3.0.2
+# transitive deps that affect rendering / warnings, pinned to the Windows env too (newer pyparsing makes
+# matplotlib 3.8 mathtext emit "'parseString' deprecated" warnings, which the designer shows to the user)
+pyparsing==3.0.9
+pillow==10.3.0
+fonttools==4.51.0
+kiwisolver==1.4.5
+contourpy==1.2.0
+cycler==0.11.0
+python-dateutil==2.9.0.post0
+werkzeug==3.0.3
+markupsafe==2.1.5
+click==8.1.7
+blinker==1.6.2
+itsdangerous==2.2.0

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plot Designer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23B5454F'/%3E%3Crect x='3' y='8' width='2.4' height='5' fill='white'/%3E%3Crect x='6.8' y='4' width='2.4' height='9' fill='white'/%3E%3Crect x='10.6' y='6' width='2.4' height='7' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css">
+<link rel="stylesheet" href="static/styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/stex/stex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/jump-to-line.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<script type="module" src="static/app.js"></script>
+</head>
+<body>
+<div id="app">
+
+  <!-- ───────────── top bar ───────────── -->
+  <header id="topbar">
+    <button id="btn-menu" class="btn btn-icon btn-ghost hamburger" title="Sections, pages and figures (M)" aria-label="Open the sections, pages and figures menu" aria-expanded="false" aria-controls="nav-drawer"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+    <div class="brand">
+      <svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><rect width="16" height="16" rx="3.5" fill="var(--accent)"/><rect x="3" y="8" width="2.4" height="5" fill="#fff"/><rect x="6.8" y="4" width="2.4" height="9" fill="#fff"/><rect x="10.6" y="6" width="2.4" height="7" fill="#fff"/></svg>
+      <span>Plot Designer</span>
+    </div>
+    <span id="ro-badge" class="ro-badge hidden" title="This designer runs in read-only mode: specs, the paper, the data registry and git cannot be changed here. Preview and recompile still work.">Read-only</span>
+    <div id="paper-root" class="paper-root" title="">—</div>
+    <div class="tb-sep"></div>
+    <button id="git-pill" class="git-pill" title="Git status (click for details)">
+      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><circle cx="4" cy="3.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="4" cy="12.5" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="12" cy="6" r="1.8" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4 5.3v5.4M12 7.8c0 2.4-3 2.2-6.6 3.6" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
+      <span id="git-branch">…</span>
+      <span id="git-ab" class="git-ab"></span>
+      <span id="git-dirty" class="git-dirty"></span>
+    </button>
+    <div class="btn-group">
+      <button id="btn-fetch" class="btn btn-sm" title="git fetch">Fetch</button>
+      <button id="btn-pull" class="btn btn-sm" title="git pull --ff-only">Pull</button>
+      <button id="btn-commit" class="btn btn-sm" title="Commit selected paths">Commit…</button>
+      <button id="btn-push" class="btn btn-sm" title="git push (asks first)">Push</button>
+    </div>
+    <div class="tb-spacer"></div>
+    <div id="compile-status" class="compile-status" aria-live="polite"></div>
+    <button id="btn-recompile" class="btn btn-primary btn-sm" title="Recompile the paper (Ctrl+Enter)">
+      <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Recompile paper
+    </button>
+    <button id="btn-help" class="btn btn-icon btn-ghost" title="Keyboard shortcuts (?)">?</button>
+    <div id="progress" class="progress"><div></div></div>
+  </header>
+
+  <!-- ───────────── main 3-column area ───────────── -->
+  <div id="main">
+
+    <!-- hamburger drawer: sections, pages, figures -->
+    <nav id="nav-drawer" class="nav-drawer" aria-label="Sections, pages and figures" aria-hidden="true">
+      <section id="sections-sec" class="side-sec">
+        <div class="sec-head">
+          <span>Sections</span>
+          <span id="sections-count" class="muted"></span>
+        </div>
+        <div id="section-list" class="section-list" role="listbox" aria-label="TeX files of the paper"></div>
+      </section>
+      <section id="pages-sec" class="side-sec">
+        <div class="sec-head">
+          <span>Pages</span>
+          <span id="pages-count" class="muted"></span>
+        </div>
+        <div id="thumbs" class="thumbs"></div>
+      </section>
+      <div class="hsplit" data-split="pages"></div>
+      <section id="figs-sec" class="side-sec">
+        <div class="sec-head">
+          <span>Figures</span>
+          <input id="fig-filter" class="input input-xs" type="search" placeholder="Filter" spellcheck="false">
+        </div>
+        <div id="fig-list" class="fig-list"></div>
+      </section>
+    </nav>
+
+    <!-- left: TeX of the whole section (editable) -->
+    <aside id="left" class="tex-panel">
+      <div id="tex-head" class="tex-head">
+        <button id="tex-file" class="tex-file" title="Switch section (M)" aria-label="Switch section">
+          <span id="tex-title" class="tex-title">TeX</span>
+          <span id="tex-path" class="tex-path mono"></span>
+          <svg viewBox="0 0 10 10" width="9" height="9" aria-hidden="true"><path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span id="editor-dirty" class="dot hidden" title="Unsaved edits (Ctrl+S saves)"></span>
+        <span class="tb-spacer"></span>
+        <div class="tex-tools">
+          <button id="tex-find" class="btn btn-icon btn-ghost btn-sm" title="Find / replace (Ctrl+F, Shift+Ctrl+F replace, Alt+G go to line)" aria-label="Find"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="6.8" cy="6.8" r="4.3" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 10l3.8 3.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+          <button id="tex-wrap" class="btn btn-icon btn-ghost btn-sm" title="Soft wrap long lines" aria-label="Soft wrap" aria-pressed="true"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 4h12M2 8h9.5a2.5 2.5 0 0 1 0 5H8m1.8-1.8L8 13l1.8 1.8M2 12h3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button id="tex-show" class="btn btn-sm" title="Show the cursor's line on the page (Ctrl+J, or Ctrl+click a line)"><svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="8" r="1.8" fill="currentColor"/></svg>Show on page</button>
+          <button id="tex-save" class="btn btn-sm" title="Write this file (Ctrl+S)">Save</button>
+          <button id="tex-recompile" class="btn btn-sm btn-primary" title="Save and recompile the paper (Ctrl+Enter)">Save + recompile</button>
+        </div>
+      </div>
+      <div id="tex-banner" class="tex-banner hidden" role="alert"></div>
+      <div id="editor-body" class="editor-body">
+        <div id="editor-host"></div>
+        <div id="editor-empty" class="empty small">Loading the paper's TeX…</div>
+      </div>
+      <div id="tex-foot" class="tex-foot">
+        <span id="editor-loc" class="mono"></span>
+        <span class="tb-spacer"></span>
+        <span id="tex-cursor" class="mono"></span>
+      </div>
+    </aside>
+    <div class="vsplit" data-split="left"></div>
+
+    <!-- center -->
+    <section id="center">
+      <div id="center-toolbar" class="toolbar">
+        <button id="tg-left" class="btn btn-icon btn-ghost panel-tg on" title="Show / hide the TeX editor ([)" aria-label="Toggle the TeX editor" aria-pressed="true"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="2.2" y="3.2" width="4" height="9.6" fill="currentColor" opacity=".55"/></svg></button>
+        <div id="mode-seg" class="seg" role="tablist">
+          <button data-mode="page" class="on" title="Compiled paper page (1)">Page</button>
+          <button data-mode="context" title="Fast context compile of the figure's surroundings (2)">Context</button>
+          <button data-mode="plot" title="The plot alone at physical size (3)">Plot only</button>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="pager">
+          <button id="pg-prev" class="btn btn-icon btn-ghost" title="Previous page (←)">‹</button>
+          <span id="pg-label" class="pg-label">–</span>
+          <button id="pg-next" class="btn btn-icon btn-ghost" title="Next page (→)">›</button>
+        </div>
+        <div class="tb-sep"></div>
+        <div class="zoomer">
+          <button id="zm-out" class="btn btn-icon btn-ghost" title="Zoom out (−)">−</button>
+          <button id="zm-label" class="zm-label" title="Fit width (0)">100%</button>
+          <button id="zm-in" class="btn btn-icon btn-ghost" title="Zoom in (+)">+</button>
+          <button id="zm-fig" class="btn btn-sm btn-ghost" title="Zoom to the selected figure (F)">Fit figure</button>
+        </div>
+        <div class="tb-spacer"></div>
+        <span id="preview-status" class="preview-status"></span>
+        <label class="switch live-label" title="Overlay the live preview on the compiled figure (L)">
+          <input id="live-toggle" type="checkbox" checked><span></span><em class="txt">Live overlay</em>
+        </label>
+        <button id="btn-compare" class="btn btn-sm btn-ghost" title="Hold to see the compiled figure under the overlay (C)">Compare</button>
+        <button id="btn-insert" class="btn btn-sm hidden" title="Insert this spec's figure into the paper">Insert into paper…</button>
+        <button id="tg-right" class="btn btn-icon btn-ghost panel-tg on" title="Show / hide the plot controls (])" aria-label="Toggle the right panel" aria-pressed="true"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><rect x="9.8" y="3.2" width="4" height="9.6" fill="currentColor" opacity=".55"/></svg></button>
+      </div>
+
+      <div id="stage-wrap" class="stage-wrap">
+      <div id="stage" class="stage" tabindex="-1">
+        <div id="stage-inner" class="stage-inner">
+          <div id="page" class="page hidden">
+            <canvas id="page-canvas"></canvas>
+            <div id="page-boxes" class="page-boxes"></div>
+            <div id="overlay" class="overlay hidden">
+              <div class="ov-mask"></div>
+              <img class="ov-img" alt="">
+              <div class="ov-frame"><span class="ov-tag"></span></div>
+            </div>
+          </div>
+          <div id="ctx-pages" class="ctx-pages hidden"></div>
+          <div id="plot-only" class="plot-only hidden">
+            <div class="po-ruler"><span id="po-dims"></span></div>
+            <div class="po-card"><img id="po-img" alt=""></div>
+            <div id="po-note" class="po-note"></div>
+          </div>
+          <div id="stage-empty" class="empty hidden"></div>
+        </div>
+        <div id="stage-banner" class="stage-banner hidden"></div>
+      </div>
+
+      <div id="err-panel" class="err-panel hidden">
+        <div class="err-head">
+          <span id="err-title">LaTeX errors</span>
+          <span class="tb-spacer"></span>
+          <button id="err-log" class="btn btn-xs btn-ghost">Log tail</button>
+          <button id="err-close" class="btn btn-icon btn-ghost" title="Dismiss">×</button>
+        </div>
+        <ul id="err-list" class="err-list"></ul>
+        <pre id="err-tail" class="err-tail hidden"></pre>
+      </div>
+      </div>
+
+    </section>
+    <div class="vsplit" data-split="right"></div>
+
+    <!-- right panel -->
+    <aside id="right">
+      <div class="spec-head">
+        <div class="row gap6">
+          <select id="spec-picker" class="input grow" title="Designer spec"></select>
+          <button id="spec-new" class="btn btn-sm" title="New spec">New</button>
+          <button id="spec-menu" class="btn btn-icon btn-sm" title="More">⋯</button>
+          <button id="right-close" class="btn btn-icon btn-sm btn-ghost right-close" title="Hide the controls (])" aria-label="Hide the controls">×</button>
+        </div>
+        <div id="spec-meta" class="spec-meta"></div>
+      </div>
+      <div id="spec-scroll" class="spec-scroll">
+        <div id="spec-note" class="note hidden"></div>
+        <div id="spec-errors" class="spec-errors hidden"></div>
+        <div id="spec-fields"></div>
+        <div id="controls"></div>
+        <div id="data-editor"></div>
+        <div id="stats-box"></div>
+      </div>
+      <div class="spec-foot">
+        <button id="btn-render" class="btn btn-primary grow" aria-label="Render + recompile" title="Render the figure into the paper repo and recompile (R)">Render + recompile</button>
+        <label class="switch" title="Render + recompile automatically 1.5 s after edits stop">
+          <input id="auto-toggle" type="checkbox"><span></span> Auto
+        </label>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ───────────── data drawer ───────────── -->
+  <div class="hsplit drawer-split hidden" data-split="drawer"></div>
+  <section id="drawer" class="drawer hidden">
+    <div class="drawer-left">
+      <form id="data-add" class="data-add" autocomplete="off">
+        <input id="da-ref" class="input grow mono" placeholder="Path, file:/// link, .lnk shortcut or symlink on this machine" spellcheck="false" required>
+        <input id="da-name" class="input" style="width:150px" placeholder="name" pattern="[A-Za-z0-9_.\-]+" spellcheck="false" required>
+        <input id="da-notes" class="input" style="width:160px" placeholder="notes (optional)">
+        <label class="check" title="Directories get a junction, files a symlink when Windows allows it. Data is never copied."><input id="da-link" type="checkbox" checked> link</label>
+        <button class="btn btn-primary btn-sm" type="submit">Add</button>
+      </form>
+      <div class="data-hint muted">Registered by reference: nothing is copied. Removing a dataset deletes only its registry entry and link, never the data.</div>
+      <div class="data-table-wrap">
+        <table id="data-table" class="table">
+          <thead><tr><th>Name</th><th>Kind</th><th>Path</th><th>Link</th><th class="num">Size</th><th>Modified</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div id="data-empty" class="empty small hidden">No datasets registered yet.</div>
+      </div>
+    </div>
+    <div class="drawer-right">
+      <div class="sec-head"><span>Preview</span><span id="dp-title" class="muted mono"></span></div>
+      <div id="data-preview" class="data-preview"><div class="empty small">Select a dataset to preview it.</div></div>
+    </div>
+  </section>
+
+  <!-- ───────────── status bar ───────────── -->
+  <footer id="statusbar">
+    <button id="btn-data" class="sb-btn" title="Data store (D)">▴ Data</button>
+    <span id="save-status" class="save-status"></span>
+    <span class="tb-spacer"></span>
+    <button id="err-chip" class="sb-btn err-chip hidden"></button>
+    <span id="sb-msg" class="muted"></span>
+  </footer>
+</div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+<div id="modal-root"></div>
+<div id="popover-root"></div>
+</body>
+</html>

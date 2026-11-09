@@ -1,0 +1,159 @@
+# paperplot theme — every visual choice for the paper's figures lives here.
+# Edit this file, or make a new one that starts with `extends: default` and
+# lists only what changes.  Check colors after editing:
+#     python -m paperplot check [theme.yaml]
+#
+# UNITS ARE REAL. Figures are saved as PDF at exactly the size given here (no
+# cropping, no rescaling). Include them in LaTeX at natural size:
+#     \includegraphics{fig.pdf}
+# and a font set to 8 here is 8pt on the printed page.
+# Lengths accept: 3.25in | 241.14749pt (LaTeX \the\columnwidth) | 8.25cm | 82.5mm
+# A bare number means inches. Font sizes are always pt.
+
+name: default
+source: https://coolors.co/palette/385f96-9eb8db-e7b800-cf5921-a82d11-800000-000000-808080
+
+# ---------------------------------------------------------------------------
+# Swatches: the ONLY place raw hex codes appear. Everything below refers to
+# these by name (a raw "#rrggbb" is also accepted anywhere a color is expected).
+# ---------------------------------------------------------------------------
+swatches:
+  # from the Coolors palette
+  navy:   "#385F96"
+  sky:    "#9EB8DB"
+  gold:   "#E7B800"
+  orange: "#CF5921"
+  rust:   "#A82D11"
+  maroon: "#800000"
+  black:  "#000000"
+  gray:   "#808080"
+  # supporting neutrals / ramp steps
+  white:    "#FFFFFF"
+  charcoal: "#4D4D4D"
+  mist:     "#E6E6E6"
+  fog:      "#F2F2F2"
+  navy-50:  "#E3EAF4"
+  navy-300: "#6C8CBA"
+  navy-900: "#1F3659"
+
+# ---------------------------------------------------------------------------
+# Color roles: what each color is FOR.
+# ---------------------------------------------------------------------------
+colors:
+  # Series/method identity, assigned in this fixed order and never cycled.
+  # Order keeps rust and maroon apart (they are hard to tell apart side by side).
+  categorical: [navy, gold, rust, sky, orange, maroon]
+  paired: {strong: navy, light: sky}          # "ours" vs. an ablation of ours
+  sequential: [navy-50, sky, navy-300, navy, navy-900]   # magnitude, light -> dark
+  diverging: [navy, fog, rust]                # cool pole, neutral mid, warm pole
+  ink: black            # titles, tick labels, value labels
+  ink_muted: charcoal   # axis labels, secondary text
+  baseline: gray        # zero line, reference bars, "Other"
+  grid: mist            # hairline gridlines
+  surface: white        # the page
+
+# ---------------------------------------------------------------------------
+# Typography — set the family to match your paper's body font.
+# Every size is the literal pt size on the page.
+# ---------------------------------------------------------------------------
+font:
+  family: serif         # serif | sans
+  serif: [Times New Roman, STIXGeneral, DejaVu Serif]
+  sans:  [Helvetica, Arial, DejaVu Sans]
+  math: stix            # stix (Times-like) | cm (Computer Modern) | dejavusans
+  sizes:
+    base: 8             # any text not covered below
+    title: 8
+    axis_label: 8
+    tick: 6             # x tick labels (e.g. condition names under bar groups)
+    ytick: 5            # y tick labels (values); defaults to `tick` if omitted
+    tick3d: 5           # tick labels on 3D axes
+    axis_label3d: 6     # axis titles on 3D axes
+    legend: 6
+    annotation: 7       # value labels on bars etc.
+
+# ---------------------------------------------------------------------------
+# Figure geometry & output (always PDF; optionally a PNG copy)
+# ---------------------------------------------------------------------------
+figure:
+  # Named widths for pp.subplots("single") / pp.subplots("double").
+  # Measured from the official RSS LaTeX template (IEEEtran [conference],
+  # letter paper) by compiling it and printing the lengths:
+  #   \columnwidth = 252pt, \columnsep = 12pt, \textwidth = 516pt
+  # In LaTeX: single -> \begin{figure}, double -> \begin{figure*}.
+  widths:
+    single: 252pt       # one column          (\columnwidth, 3.487in)
+    double: 516pt       # both columns + gap  (\textwidth,   7.140in)
+  aspect: 0.618         # default height / width; or pass height= explicitly
+  padding: 0.02in       # inner margin kept around the plot inside the page
+  raster_dpi: 1200      # resolution of rasterized artists inside the PDF (point clouds, meshes)
+  png: true             # also write fig.png next to fig.pdf (the PDF is what goes in the paper)
+  transparent: false    # true = no page background in the PDF/PNG (or pass pp.save(..., transparent=True))
+  png_dpi: 600          # PNG resolution; 252pt wide at 600 dpi = 2092 px
+
+# ---------------------------------------------------------------------------
+# Axes, lines, legend
+# ---------------------------------------------------------------------------
+axes:
+  spines: [left, bottom]  # which frame edges to draw
+  spine_width: 0.6        # pt
+  grid: y                 # y | x | both | none
+  grid_width: 0.25        # pt
+  tick_length: 0          # pt (0 = no tick marks)
+  tick_width: 0.6         # pt
+  tick_pad: 2             # pt between tick and label
+  label_pad: 3            # pt between tick labels and axis label
+
+axes3d:                   # pp.subplots3d()
+  projection: ortho       # ortho | persp
+  elev: 25                # default camera elevation, degrees
+  azim: -60               # default camera azimuth, degrees
+  rect: [0.0, 0.0, 1.0, 1.0]  # axes box in figure fractions (3D axes ignore auto layout)
+  zoom: 1.0               # size of the 3D box within the axes (pp.set_equal)
+  pane_color: white       # the three back walls
+  axis_width: 0           # pt; the line along each axis that the ticks sit on (0 = hidden)
+  grid: true
+  tick_pad: -4            # pt; negative pulls tick labels toward the axes
+  label_pad: -10          # pt
+
+lines:
+  width: 1.25             # pt
+  marker_size: 4          # pt
+
+legend:
+  frame: false
+  handle_length: 1.0      # in font-size units
+  handle_height: 0.8
+  handle_text_pad: 0.4
+  column_spacing: 1.0
+
+# ---------------------------------------------------------------------------
+# Bar charts
+# ---------------------------------------------------------------------------
+bars:
+  group_width: 0.8      # fraction of each category slot the group fills
+  gap_pt: 1.0           # white gap between neighbouring bars
+  error_width: 0.6      # pt, whisker and cap line width
+  error_color: gray     # swatch name or hex
+  error_cap_pt: 3       # cap (cross-bar) width in pt; 0 = no caps
+  labels: none          # value text on bars: none | highlight | all | max
+  label_format: "{:.1f}"
+  legend: top           # top | right | none
+  legend_align: right   # left | center | right (for legend: top)
+  missing_label: "n/a"  # shown in a series' empty slot when a value is NaN ("" = nothing)
+  zero_bar_pt: 1.0      # thickness of a bar whose value is exactly 0 (so it still shows)
+  divider:              # dashed rule drawn by pp.bar(..., dividers=[i]) after category i
+    color: gray
+    width: 0.6          # pt
+    dash: [2, 2]        # pt on, pt off
+  hatch_width: 0.6      # pt
+  # hatch patterns for grayscale print (pp.bar(..., hatch=True)); first = no hatch
+  hatches: ["", "////", "\\\\\\\\", "xxxx", "....", "oooo"]
+
+# ---------------------------------------------------------------------------
+# Statistics (paperplot.stats)
+# ---------------------------------------------------------------------------
+stats:
+  # Success rate p ~ Beta(prior_a + successes, prior_b + failures).
+  prior: [1, 1]         # Beta(1, 1) = uniform
+  ci_level: 0.95        # equal-tailed credible interval

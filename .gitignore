@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.cache/
+# designer state (specs, data registry) lives outside the repo, in the mounted state dir
+designer/data/
+designer/specs/
+designer/tests/out/
+designer/tests/_tmp*

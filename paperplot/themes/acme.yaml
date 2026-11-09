@@ -1,0 +1,60 @@
+# ACME theme — font, colors and bar styling pulled from the ACME plotting library
+#   borabora:~/ACME/acme/plotting/style.py          (templates, palette, font)
+#   borabora:~/ACME/acme/plotting/realworld/plots.py (go.Bar styling)
+#   at commit 63b497d (2026-09-28)
+#
+# Everything not set here (figure widths, font sizes, legend, stats, ...) is
+# inherited from `default`. In particular, ACME's own sizes are NOT used: its
+# font sizes and RSS widths (234pt / 495pt) scale with the Plotly export
+# resolution; the widths here stay the measured RSS values (252pt / 516pt).
+#
+# ACME's line widths are in Plotly px on figures exported 2560px wide for a
+# full-width figure, so they are converted at 516pt / 2560px = 0.2016 pt/px.
+
+extends: default
+name: acme
+
+swatches:
+  # Paul Tol "Bright" (colorblind-safe), ACME's LIGHT_COLORWAY
+  tol-blue:   "#4477AA"
+  tol-red:    "#EE6677"
+  tol-green:  "#228833"
+  tol-yellow: "#CCBB44"
+  tol-cyan:   "#66CCEE"
+  tol-purple: "#AA3377"
+  tol-grey:   "#BBBBBB"
+  # ACME neutrals, flattened onto white where ACME uses alpha
+  acme-grid:    "#D9D9D9"   # GRID_COLOR rgba(0,0,0,0.15)
+  acme-outline: "#505050"   # bar outline / error bar rgb(80,80,80), used with alpha 0.8
+  plotly-gray:  "#808080"   # Plotly "gray" (group separators)
+
+colors:
+  # ACME's colorway order. Bars are drawn darkened (bars.fill_darken), as in ACME.
+  categorical: [tol-blue, tol-red, tol-green, tol-yellow, tol-cyan, tol-purple, tol-grey]
+  paired: {strong: tol-blue, light: tol-cyan}
+  ink: black
+  ink_muted: black        # ACME sets all text black
+  grid: acme-grid
+
+font:
+  family: serif
+  serif: [Roboto Slab, DejaVu Serif]
+  # Bundled (paperplot/fonts/, Apache-2.0), copied from borabora:~/.fonts.
+  # Latin subset only: no Greek, so math falls back to STIX for letters like pi.
+  files: [roboto-slab-v36-latin-regular.ttf, roboto-slab-v36-latin-700.ttf]
+  math: text              # math in Roboto Slab; STIX for glyphs it lacks
+
+bars:
+  group_width: 0.8        # ACME: bar_width = 0.8 / n_series
+  bar_width: 0.9          # ACME: width = bar_width * 0.9 of each slot
+  fill_darken: 0.7        # ACME "muted" fill: rgb * 0.7
+  edge_darken: 0.6        # outline = the bar's own fill x 0.6 (ACME used gray acme-outline)
+  edge_width: 0.6         # ACME's 1px (0.2pt) was too thin to see in print
+  error_color: acme-outline   # Plotly: bar error bars inherit marker.line.color
+  error_alpha: 0.8
+  error_width: 0.4        # thickness=2px
+  error_cap_pt: 1.6       # width=4px per side -> 8px total
+  baseline_color: black   # ACME drop plots: zerolinecolor black
+  baseline_width: 0.4     # zerolinewidth=2px
+  # ACME's dashed vertical lines between groups are intentionally left out.
+  # (bars.group_separator: {color, width, dash} turns them back on.)

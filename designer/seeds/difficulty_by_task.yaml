@@ -1,0 +1,62 @@
+# Seed spec (copied once into a designer state dir; never edited by a running designer).
+# Example data: made-up counts. [k, n, {dup: true}] = a cell with re-run positions: its interval is drawn in
+# style.dup_ci_color (yellow). null = not evaluated (n/a).
+# A lines chart: one line per task over difficulty levels.
+id: difficulty_by_task
+kind: lines
+title: Base pi0.5 success rate vs difficulty, one line per task (Fig. 4)
+output: figures/evals/difficulty_by_task.pdf
+data:
+  source: inline
+  levels: [Nominal, Easy, Medium, Hard]
+  arms:
+  - name: Mug
+    color: tol-blue
+    counts: [[16, 20, {dup: true}], [12, 20, {dup: true}], [9, 20], [2, 20]]
+  - name: Push T
+    color: tol-red
+    counts: [[15, 20], [4, 20, {dup: true}], null, [1, 20]]
+  - name: Rope
+    color: tol-green
+    counts: [[17, 20, {dup: true}], [13, 20, {dup: true}], null, [1, 20]]
+style:
+  theme: acme
+  font_family: null
+  width_pt: 252
+  height_pt: 105.84
+  line_width: 1.2
+  marker: s
+  marker_size: 3
+  marker_edge_width: null
+  gap_mode: join
+  arm_order: null
+  legend_loc: above
+  legend_align: right
+  legend_cols: null
+  legend_fontsize: 8
+  legend_handlelength: null
+  legend_pad: 0.2
+  tick_fontsize: 6
+  xtick_fontsize: 8
+  ylabel: Success Rate
+  ylabel_fontsize: 10
+  y_mode: count
+  out_of: 20
+  ytick_step: 20
+  x_margin: 0.45
+  xlabel_pad: 4.0
+  grid_color: '#EBEBEB'
+  grid_width: 0.4
+  bottom_spine: grid
+  ci: none
+  ci_style: whiskers
+  ci_level: 0.95
+  ci_linewidth: 0.6
+  ci_capsize: 1.5
+  band_alpha: 0.18
+  partial_below: 20
+  partial_ci_color: '#CC3311'
+  dup_ci_color: '#DDAA33'
+  palette: null
+  fill_darken: 0.7
+  transparent: false

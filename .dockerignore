@@ -1,0 +1,15 @@
+# Build context for designer/docker/Dockerfile is this folder. Allow-list: the image needs only the paperplot
+# library (incl. fonts/ and themes/) and designer/. Never send figures/out, data, artifacts or caches.
+*
+!paperplot
+!designer
+
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.cache
+designer/data
+# the Windows-native designer's live specs (its default state dir is designer/); the image seeds from designer/seeds
+designer/specs
+designer/tests/out
+designer/tests/_tmp*
