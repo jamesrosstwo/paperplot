@@ -43,7 +43,7 @@ def test_defaults_match_controls():
 
 def test_controls_shape_and_discovery():
     c = spec.controls()
-    groups = {"Theme", "Size", "Panels", "Bars", "Lines", "Order", "Axes", "Legend", "Error bars", "Colors"}
+    groups = {"Theme", "Size", "Layout", "Panels", "Bars", "Lines", "Order", "Axes", "Legend", "Error bars", "Colors"}
     types = {"slider", "dropdown", "number", "text", "color", "toggle", "json"}
     by = {row["key"]: row for row in c["style"]}
     for row in c["style"]:

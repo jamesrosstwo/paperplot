@@ -352,6 +352,77 @@ def test_horizontal_bars():
         render.plt.close(fig)
 
 
+def _cells_of(fig):
+    """{axes: (row, col)} from each subplot's grid position."""
+    return {ax: (ax.get_subplotspec().rowspan.start, ax.get_subplotspec().colspan.start) for ax in fig.axes}
+
+
+def test_bar_grid_layouts():
+    """Subplots from split_groups or data.panels, laid out by grid_rows x grid_cols and grid_fill, in either
+    orientation; equal group slots everywhere; one legend over a multi-column grid; panel_ylabel shared."""
+    s = load_seed("mug_conditions")
+    levels = s["data"]["levels"]                     # 8 groups
+    s["style"].update(orientation="horizontal", split_groups=2, grid_cols=2, level_sort="none", divider_before=1,
+                      panel_ylabel="shared", ylabel="Success rate", height_pt=160, bar_width_pt=4, bar_gap_pt=1,
+                      legend_loc="above", panel_hgap=12)
+    assert spec.validate(s) == []
+    fig, stats, warns = _draw(s)
+    try:
+        left, right = sorted(fig.axes, key=lambda a: _cells_of(fig)[a][1])
+        assert [_cells_of(fig)[a] for a in (left, right)] == [(0, 0), (0, 1)]
+        assert [t.get_text() for t in left.get_yticklabels()] == levels[:4]
+        assert [t.get_text() for t in right.get_yticklabels()] == levels[4:]
+        assert left.get_ylim() == right.get_ylim() == (3.5, -0.5)
+        assert len(fig.legends) == 1 and left.get_legend() is None and right.get_legend() is None
+        assert fig._supxlabel.get_text() == "Success rate" and not left.get_xlabel() and not right.get_xlabel()
+        divs = lambda ax: [l for l in ax.get_lines() if len(set(l.get_ydata())) == 1 and l.get_ydata()[0] == 0.5]
+        assert divs(left) and not divs(right)        # the divider stays with its group
+        assert len(stats) == 8 * len(s["data"]["arms"])
+        assert not [w for w in warns if "squeezed" in w or "does not fit" in w or "clipped" in w], warns
+    finally:
+        render.plt.close(fig)
+
+    # 3 subplots in a 2 x 2 grid: by rows the third sits bottom-left, by columns top-right; the 4th cell stays empty;
+    # a short last subplot keeps the slot size of the others
+    s["style"].update(split_groups=3, grid_cols=2, orientation="vertical", panel_ylabel="each", height_pt=200)
+    for fill, third in (("rows", (1, 0)), ("columns", (0, 1))):
+        s["style"]["grid_fill"] = fill
+        fig, _, warns = _draw(s)
+        try:
+            cells = _cells_of(fig)
+            assert len(fig.axes) == 3
+            by_first = {ax.get_xticklabels()[0].get_text(): cells[ax] for ax in fig.axes}
+            assert by_first[levels[6]] == third
+            assert {ax.get_xlim() for ax in fig.axes} == {(-0.5, 2.5)}
+        finally:
+            render.plt.close(fig)
+
+    # data.panels in a grid: 3 panels, 1 row x 3 columns, horizontal, titles above
+    s = load_seed("mug_baselines_panels")
+    s["style"].update(orientation="horizontal", grid_rows=1, panel_title_loc="above left", panel_ylabel="shared",
+                      legend_loc="above",
+                      width_pt=400, height_pt=140)
+    assert spec.validate(s) == []
+    fig, _, warns = _draw(s)
+    try:
+        cells = _cells_of(fig)
+        assert sorted(cells.values()) == [(0, 0), (0, 1), (0, 2)]
+        assert [ax.get_title(loc="left") for ax in sorted(fig.axes, key=lambda a: cells[a])] == ["Mug", "Push-T", "Rope"]
+        assert len(fig.legends) == 1
+        assert not any("split_groups" in w for w in warns)
+    finally:
+        render.plt.close(fig)
+
+    # too small a grid grows; split_groups with panels is ignored with a warning
+    s["style"].update(grid_rows=1, grid_cols=2, split_groups=2)
+    fig, _, warns = _draw(s)
+    try:
+        assert sorted(_cells_of(fig).values()) == [(0, 0), (0, 1), (1, 0)]
+        assert any("fewer cells" in w for w in warns) and any("split_groups" in w for w in warns)
+    finally:
+        render.plt.close(fig)
+
+
 def test_dup_interval_colors():
     s = load_seed("mug_baselines_panels")
     s["style"]["dup_ci_color"] = "#00FF00"

@@ -149,13 +149,17 @@ CHANGES = {
     "palette": "categorical", "fill_darken": 1.0, "edge_darken": 0.3, "transparent": True,
     "arm_order": {"fixed": ["Ours"], "rest": "as_listed"}, "level_sort": "desc", "legend_align": "right",
     "legend_box_fontsize": 8, "legend_pad": 0.5, "xtick_rotation": 30, "level_colors": {"Easy": "#BBBBBB"},
-    "bar_width_pt": 4, "bar_gap_pt": 1, "hidden_arms": ["ZeroNVS"], "hidden_levels": ["Medium"],
+    "bar_width_pt": 4, "bar_gap_pt": 1, "hidden_arms": ["ZeroNVS"], "hidden_levels": ["Medium"], "split_groups": 2,
 }
 # keys that only show together with another setting: {key: (settings that make it visible, changed value)}
 COMBOS = {
     "level_pin_first": ({"level_sort": "desc"}, 2),
     "divider_style": ({"divider_before": 1}, "theme"),
     "dup_ci_color": ({"_dup": True}, "#00AA00"),
+    "grid_rows": ({"split_groups": 2}, 1),
+    "grid_cols": ({"split_groups": 2}, 2),
+    "grid_fill": ({"split_groups": 3, "grid_cols": 2}, "columns"),
+    "panel_hgap": ({"split_groups": 2, "grid_cols": 2}, 30),
 }
 # data.panels keys: tested on the panel seed in test_kinds.py
 PANEL_KEYS = {"panel_gap", "share_x_labels", "panel_title_loc", "panel_title_fontsize", "panel_ylabel"}

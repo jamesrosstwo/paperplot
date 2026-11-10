@@ -4,7 +4,7 @@
 import { h, store, clamp, plainTex } from './ui.js';
 
 // fallback when GET /api/controls carries no `groups` (spec.GROUPS is the reference order)
-const GROUP_ORDER = ['Theme', 'Size', 'Panels', 'Bars', 'Lines', 'Order', 'Axes', 'Legend', 'Error bars', 'Colors'];
+const GROUP_ORDER = ['Theme', 'Size', 'Layout', 'Panels', 'Bars', 'Lines', 'Order', 'Axes', 'Legend', 'Error bars', 'Colors'];
 const ARM_ORDER_MODES = [['as_listed', 'As listed'], ['pooled', 'Pooled rate (best first)'], ['mean', 'Mean rate (best first)'], ['manual', 'Manual']];
 const GREEK = { alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', theta: 'θ', lambda: 'λ', mu: 'μ', pi: 'π', rho: 'ρ', sigma: 'σ', tau: 'τ', phi: 'φ', psi: 'ψ', omega: 'ω' };
 /** One-line plain label for an arm / legend name written in TeX ("$\mathrm{\pi}_{0.5}$ (base)" -> "π0.5 (base)"). */

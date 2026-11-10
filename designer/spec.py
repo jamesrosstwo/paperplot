@@ -121,16 +121,29 @@ def _panel_rows():
         ("panel_title_fontsize", "Panel title size (pt)", "slider", None, "Panels",
          dict(min=4, max=16, step=0.5, nullable=True, help="auto = theme title size")),
         ("panel_ylabel", "Panel y label", "dropdown", "each", "Panels",
-         dict(options=_opts("each", "middle", "first"), help="Which panels carry the y label")),
+         dict(options=_opts("each", "middle", "first", "shared"),
+              help="Which panels carry the y label; shared: one label for the whole figure")),
     ]
 
 
 def _grouped_bars_table():
     return _head_rows() + _panel_rows() + [
-        ("orientation", "Orientation", "dropdown", "vertical", "Bars",
+        ("orientation", "Orientation", "dropdown", "vertical", "Layout",
          dict(options=_opts("vertical", "horizontal"), help="horizontal: bars grow left to right, groups stacked top "
                                                             "to bottom; y label, y ticks and tick size then describe "
                                                             "the x (value) axis")),
+        ("split_groups", "Split into subplots", "slider", 1, "Layout",
+         dict(min=1, max=8, step=1, help="Without data.panels: spread the groups over this many subplots, in order "
+                                         "(with data.panels each panel is already a subplot)")),
+        ("grid_rows", "Grid rows", "slider", None, "Layout",
+         dict(min=1, max=8, step=1, nullable=True, help="Rows of the subplot grid; auto = as many as needed")),
+        ("grid_cols", "Grid columns", "slider", None, "Layout",
+         dict(min=1, max=8, step=1, nullable=True, help="Columns of the subplot grid; auto = as many as needed "
+                                                        "(rows and columns both auto: one column)")),
+        ("grid_fill", "Grid fill", "dropdown", "rows", "Layout",
+         dict(options=_opts("rows", "columns"), help="Place subplots row by row, or down each column first")),
+        ("panel_hgap", "Column gap (pt)", "slider", None, "Layout",
+         dict(min=0, max=60, step=0.5, nullable=True, help="Space between grid columns; auto = fit the labels")),
         ("group_width", "Group width / group gap", "slider", 0.66, "Bars",
          dict(min=0.3, max=1.0, step=0.005, help="Fraction of each group slot the bars span; the space between groups "
                                                  "is 1 - this (0.66 leaves a 0.34 gap)")),
@@ -282,7 +295,7 @@ def _lines_table():
 
 
 _TABLES = {"grouped_bars": _grouped_bars_table, "lines": _lines_table}
-GROUPS = ["Theme", "Size", "Panels", "Bars", "Lines", "Order", "Axes", "Legend", "Error bars", "Colors"]
+GROUPS = ["Theme", "Size", "Layout", "Panels", "Bars", "Lines", "Order", "Axes", "Legend", "Error bars", "Colors"]
 
 
 def _style_table(kind: str = "grouped_bars"):

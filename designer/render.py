@@ -360,8 +360,9 @@ def _y_formatter(ax, style):
         axis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}"))
 
 
-def _legend(ax, handles, names, style, default_align="center", columnspacing=None):
-    """Legend 'above' (lower edge on the axes top, aligned by legend_align) or 'right'; None for 'none'."""
+def _legend(ax, handles, names, style, default_align="center", columnspacing=None, fig=None):
+    """Legend 'above' (lower edge on the axes top, aligned by legend_align) or 'right'; None for 'none'.
+    With fig: one figure legend above / right of every axes (side-by-side columns)."""
     if not handles or style["legend_loc"] not in ("above", "right"):
         return None
     fs = style["legend_fontsize"]
@@ -373,7 +374,11 @@ def _legend(ax, handles, names, style, default_align="center", columnspacing=Non
         kw["handlelength"] = style["legend_handlelength"]
     if columnspacing is not None:
         kw["columnspacing"] = columnspacing
-    if style["legend_loc"] == "above":
+    if fig is not None:
+        align = style.get("legend_align", default_align)
+        loc = f"outside upper {align}" if style["legend_loc"] == "above" else "outside right center"
+        leg = fig.legend(handles, names, loc=loc, **kw)
+    elif style["legend_loc"] == "above":
         align = style.get("legend_align", default_align)
         leg = ax.legend(handles, names, loc="lower center" if align == "center" else f"lower {align}",
                         bbox_to_anchor=({"left": 0.0, "center": 0.5, "right": 1.0}[align], 1.0), **kw)
@@ -570,7 +575,48 @@ def _bars_in_points(spec, style, data, warns):
     return dict(style, group_width=gw, bar_fill=fill, bar_width_pt=None, bar_gap_pt=None)
 
 
+def _grid_shape(style, n, warns):
+    """(rows, cols) of the subplot grid: grid_rows / grid_cols, either may be auto; both auto = one column."""
+    r, c = style.get("grid_rows"), style.get("grid_cols")
+    r, c = (int(r) if r else None), (int(c) if c else None)
+    if r is None and c is None:
+        return n, 1
+    if c is None:
+        return r, -(-n // r)
+    if r is None:
+        return -(-n // c), c
+    if r * c < n:
+        warns.append(f"grid {r}x{c} has fewer cells than the {n} subplots; using {-(-n // c)} rows")
+        r = -(-n // c)
+    return r, c
+
+
+def _split_groups(panel, parts, style, warns):
+    """One chart's groups split into `parts` subplots in order (as even as possible, earlier subplots longest); the
+    divider and level colors go to the subplot holding their group."""
+    levels, arms = panel["levels"], panel["arms"]
+    parts = min(parts, len(levels))
+    per = -(-len(levels) // parts)
+    d = style.get("divider_before")
+    if d is not None and not 0 < d < len(levels):
+        warns.append(f"divider_before={d} is outside 1..{len(levels) - 1}; not drawn")
+    lc = style.get("level_colors") or {}
+    for name in set(lc) - set(levels):
+        warns.append(f"level_colors: no group {name!r}")
+    out = []
+    for a in range(0, len(levels), per):
+        idx = range(a, min(a + per, len(levels)))
+        lv = [levels[j] for j in idx]
+        out.append({"title": None, "levels": lv, "arms": [dict(x, counts=[x["counts"][j] for j in idx]) for x in arms],
+                    "style": {"divider_before": d - a if d is not None and a < d < idx.stop else None,
+                              "level_colors": {k: v for k, v in lc.items() if k in lv} or None}})
+    return out
+
+
 def _grouped_bars(spec, style, data, warns):
+    """Grouped bars in a grid of subplots. Subplots are data.panels (each with its title) or, without panels, one
+    chart's groups split into split_groups parts; grid_rows x grid_cols lay them out (default: one column), filled by
+    row or by column (grid_fill). Every subplot has as many group slots as the longest, so bars keep one size."""
     if style.get("bar_width_pt") is not None or style.get("bar_gap_pt") is not None:
         style = _bars_in_points(spec, style, data, warns)
     t = _activate(style, warns)
@@ -587,29 +633,15 @@ def _grouped_bars(spec, style, data, warns):
         panels = [dict(p, arms=[p["arms"][i] for i in order]) for p in panels]
     for p in panels:
         p["levels"], p["arms"] = _sort_levels(style, p["levels"], p["arms"])
+    split = int(style.get("split_groups") or 1)
+    if split > 1 and multi:
+        warns.append("split_groups applies to data without panels; ignored")
+    elif split > 1:
+        panels = _split_groups(panels[0], split, style, warns)
+    many = len(panels) > 1
     n_arms, n_p = len(shared), len(panels)
-    if multi:
-        fig, axes = pp.subplots(f"{style['width_pt']}pt", height=f"{style['height_pt']}pt", nrows=n_p, squeeze=False)
-        axes = list(axes[:, 0])
-        gap = style.get("panel_gap")
-        if n_p > 1 and gap:      # constrained layout: each inner gap = hspace / nrows of the figure height
-            fig.get_layout_engine().set(hspace=n_p * float(gap) / float(style["height_pt"]))
-    else:
-        fig, ax = pp.subplots(f"{style['width_pt']}pt", height=f"{style['height_pt']}pt")
-        axes = [ax]
-    ymode = style.get("panel_ylabel", "each")
-    # panel_title_loc 'left' / 'right': each panel's title is its rotated y label (left: beside the ticks; right: at the
-    # right edge), reading bottom to top like the y label, which is one figure-level label on the left shared by every panel
-    # (panel_ylabel does not apply)
-    # 'below': each title is the panel's x label, under its level labels, with the same shared y label
-    title_side = style.get("panel_title_loc") if multi and style.get("panel_title_loc") in ASIDE_LOCS else None
-    titles_aside = title_side is not None
-    stats = []
-    for pi, (ax, p) in enumerate(zip(axes, panels)):
-        show_y = not multi or ymode == "each" or (ymode == "first" and pi == 0) or (ymode == "middle" and pi == n_p // 2)
-        ylabel = (p.get("title") if title_side != "below" else None) if titles_aside else (style["ylabel"] if show_y else None)
-        _bars_panel(ax, t, style, p["levels"], p["arms"], base_colors, warns, stats,
-                    ylabel, p.get("title") if multi else None)
+    horiz = _horizontal(style)
+
     edge_w = t.bars.get("edge_width", 0)
     fills = [_darken(c, style["fill_darken"]) for c in base_colors]
     edges = [_darken(f, style["edge_darken"]) if edge_w else "none" for f in fills]
@@ -620,16 +652,58 @@ def _grouped_bars(spec, style, data, warns):
     handles = [Patch(facecolor=fills[i], edgecolor=edges[i], linewidth=edge_w, hatch=shared[i].get("hatch"))
                for i in shown]
     names = [shared[i]["name"] for i in shown]
-    _legend(axes[0] if style["legend_loc"] == "above" else axes[n_p // 2], handles, names, style,
-            columnspacing=1.0)
+
+    rows, cols = _grid_shape(style, n_p, warns) if many else (1, 1)
+    fig, grid = pp.subplots(f"{style['width_pt']}pt", height=f"{style['height_pt']}pt", nrows=rows, ncols=cols,
+                            squeeze=False)
+    slots = [(r, c) for r in range(rows) for c in range(cols)]
+    if style.get("grid_fill") == "columns":
+        slots = [(r, c) for c in range(cols) for r in range(rows)]
+    slots = slots[:n_p]
+    for r in range(rows):
+        for c in range(cols):
+            if (r, c) not in slots:
+                fig.delaxes(grid[r][c])            # an empty cell keeps its place in the grid
+    axes = [grid[r][c] for r, c in slots]
+    eng = fig.get_layout_engine()
+    gap, hgap = style.get("panel_gap"), style.get("panel_hgap")
+    if rows > 1 and gap:         # constrained layout: each inner gap = hspace / nrows of the figure height
+        eng.set(hspace=rows * float(gap) / float(style["height_pt"]))
+    if cols > 1 and hgap:
+        eng.set(wspace=cols * float(hgap) / float(style["width_pt"]))
+    bottom = [not any(c2 == c and r2 > r for r2, c2 in slots) for r, c in slots]   # nothing below it in its column
+
+    ymode = style.get("panel_ylabel", "each")
+    # panel_title_loc 'left' / 'right': each subplot's title is its rotated y label (left: beside the ticks; right: at the
+    # right edge), reading bottom to top; 'below': it is the x label, under the group labels. These, and
+    # panel_ylabel 'shared', give one figure-level value-axis label for every subplot.
+    title_side = style.get("panel_title_loc") if many and style.get("panel_title_loc") in ASIDE_LOCS else None
+    shared_label = many and (title_side is not None or ymode == "shared")
+    stats = []
+    m_max = max(len(p["levels"]) for p in panels)
     for pi, (ax, p) in enumerate(zip(axes, panels)):
-        _bars_finish(fig, ax, t, style, p["levels"], warns, multi=multi, bottom=pi == n_p - 1,
-                     title=p.get("title") if multi else None)
-        if titles_aside:
+        st = dict(style, **p.get("style", {}))
+        show_y = not many or ymode == "each" or (ymode == "first" and pi == 0) or (ymode == "middle" and pi == n_p // 2)
+        label = None if shared_label else (style["ylabel"] if show_y else None)
+        _bars_panel(ax, t, st, p["levels"], p["arms"], base_colors, warns, stats, label,
+                    p.get("title") if multi else None)
+        if horiz:                                   # equal group slots in every subplot, first group on top / left
+            ax.set_ylim(m_max - 0.5, -0.5)
+        else:
+            ax.set_xlim(-0.5, m_max - 0.5)
+    if cols > 1:                                    # one legend over the whole grid
+        _legend(axes[0], handles, names, style, columnspacing=1.0, fig=fig)
+    else:
+        _legend(axes[0] if style["legend_loc"] == "above" else axes[n_p // 2], handles, names, style,
+                columnspacing=1.0)
+    for pi, (ax, p) in enumerate(zip(axes, panels)):
+        st = dict(style, **p.get("style", {}))
+        _bars_finish(fig, ax, t, st, p["levels"], warns, multi=many, bottom=bottom[pi], title=p.get("title"))
+        if title_side:
             _aside_title_label(ax, style, title_side, p.get("title"))
-    if titles_aside:
+    if shared_label:
         _shared_ylabel(fig, style)
-    _tidy_and_check(fig, axes, max(len(p["levels"]) for p in panels), warns)
+    _tidy_and_check(fig, axes, m_max, warns)
     return fig, stats
 
 
@@ -646,16 +720,18 @@ def _aside_title_label(ax, style, side, title=None):
         if title:
             ax.set_xlabel(title, fontsize=fs)
         return
+    if title:
+        ax.set_ylabel(title)
     ax.yaxis.label.set_fontsize(fs)
     if side == "right":                                # same reading direction as the shared y label (bottom to top)
         ax.yaxis.set_label_position("right")
 
 
 def _shared_ylabel(fig, style):
-    """One figure-level y label on the left, shared by every panel (with panel titles left/right)."""
+    """One figure-level value-axis label shared by every subplot: left of the grid (under it for horizontal bars)."""
     if style.get("ylabel"):
         fs = style.get("ylabel_fontsize")
-        fig.supylabel(style["ylabel"], fontsize=fs if fs is not None else matplotlib.rcParams["axes.labelsize"],
+        (fig.supxlabel if _horizontal(style) else fig.supylabel)(style["ylabel"], fontsize=fs if fs is not None else matplotlib.rcParams["axes.labelsize"],
                       color=matplotlib.rcParams["axes.labelcolor"])
 
 
@@ -698,6 +774,7 @@ def _lines(spec, style, data, warns):
         for i, line in _lines_panel(ax, t, style, p["levels"], p["arms"], base_colors, warns, stats, title).items():
             first_line.setdefault(i, line)
         show_y = not multi or ymode == "each" or (ymode == "first" and pi == 0) or (ymode == "middle" and pi == n_p // 2)
+        show_y = show_y and not (multi and ymode == "shared")
         ylabel = (title if side != "below" else None) if side else (style.get("ylabel") if show_y else None)
         _lines_axes(ax, t, style, p["levels"], ylabel)
         if multi and pi != n_p - 1 and style.get("share_x_labels"):
@@ -712,7 +789,7 @@ def _lines(spec, style, data, warns):
     shown = sorted(first_line)
     _legend(axes[0] if style["legend_loc"] == "above" else axes[n_p // 2], [first_line[i] for i in shown],
             [shared[i]["name"] for i in shown], style, default_align="right")
-    if side:
+    if side or (multi and ymode == "shared"):
         _shared_ylabel(fig, style)
     _tidy_and_check(fig, axes, max(len(p["levels"]) for p in panels), warns)
     return fig, stats
@@ -861,16 +938,18 @@ def _tidy_and_check(fig, axes, n_levels: int, warns: list) -> None:
         r = fig.canvas.get_renderer()
     fb = fig.bbox
     tol = 1.0
-    share = 1.0 / len(axes)
+    share = 1.0 / len({round(ax.get_position().y0, 4) for ax in axes})      # stacked rows
+    wshare = 1.0 / len({round(ax.get_position().x0, 4) for ax in axes})     # side-by-side columns
     for ax in axes:
-        leg = ax.get_legend()
-        if leg is not None:
+        for leg in [ax.get_legend()] + (list(fig.legends) if ax is axes[0] else []):
+            if leg is None:
+                continue
             lb = leg.get_window_extent(r)
             if lb.x0 < fb.x0 - tol or lb.x1 > fb.x1 + tol or lb.y1 > fb.y1 + tol or lb.y0 < fb.y0 - tol:
                 warns.append("the legend does not fit the figure and is clipped; reduce legend columns / legend font "
                              "size, or use legend position 'above' (with 'right', 1 column)")
         ab = ax.get_window_extent(r)
-        if ab.width < 0.4 * fb.width:
+        if ab.width < 0.4 * wshare * fb.width:
             warns.append(f"the plot area is squeezed to {100 * ab.width / fb.width:.0f}% of the figure width "
                          "(legend or labels take the rest)")
         if ab.height < 0.25 * share * fb.height:

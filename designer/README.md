@@ -99,6 +99,12 @@ without `DESIGNER_TOKEN` unless `DESIGNER_HOST` is explicitly set to a loopback 
     with the yellow `dup_ci_color` interval. Grouped bars can be **split into stacked panels**: shared arms (name,
     color, slot) plus one tab per panel (title, optional own levels, counts); an arm missing from a panel is n/a there.
     Renaming an arm follows it into every panel and into the arm order.
+    *Layout* places the subplots in a grid: *Orientation* (vertical, or horizontal bars growing left to right),
+    *Split into subplots* (spread one chart's groups over N subplots, when there are no panels), *Grid rows* /
+    *Grid columns* (either may be auto; both auto = one column), *Grid fill* (by rows or down columns) and
+    *Column gap*. Every subplot gets as many group slots as the longest, so bars keep one size; a grid with more than
+    one column gets one legend over the whole figure. *Panel y label: shared* gives one value-axis label for all
+    subplots.
   - *Order ▸ Arm order*: tick arms to draw them first; the rest as listed, by pooled or mean success rate (one order
     for every panel and group), or manually (↑ / ↓). `{ }` edits the raw value.
   - *Colors ▸ Group colors*: tick a group (x level) to fill all its bars with one color (e.g. Nominal in gray).
