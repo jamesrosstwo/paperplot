@@ -4,7 +4,7 @@
 import { api, asList, abs } from './api.js';
 import { $, $$, h, debounce, store, toast, toastError, modal, confirmDialog, menu, popover, closePopover, makeSplitter, plainTex, fmtBytes, fmtTime, errText, clamp } from './ui.js';
 import { PageViewer, Thumbs, loadPdf, renderStack, overlayRect, pdfjsAvailable, MIN_SCALE, MAX_SCALE, DEFAULT_SCALE } from './pdfview.js';
-import { ControlPanel, DataEditor, armLabel, countParts } from './controls.js';
+import { ControlPanel, DataEditor, armLabel, countParts, collapsibleGroup, setAllGroups } from './controls.js';
 
 const PT_100 = 96 / 72;               // CSS px per pt at "100%" (physical size)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -1230,7 +1230,6 @@ function renderStats() {
     host.replaceChildren(...(previewNotes.length && S.spec ? [h('div.stats', notesBlock(previewNotes))] : []));
     return;
   }
-  const collapsed = store.get('groups.collapsed', {});
   const pct = (v) => (v == null || isNaN(v) ? '' : Math.round(v * 1000) / 10 + '%');
   const st = (S.spec && S.spec.style) || {};
   const partialBelow = st.partial_below, ciOn = st.ci && st.ci !== 'none';
@@ -1242,9 +1241,7 @@ function renderStats() {
     return null;
   };
   const heads = [...(hasPanel ? ['Panel'] : []), 'Level', 'Arm', 'k/n', '', 'Rate', 'CI'];
-  const grp = h('div.cgroup' + (collapsed.Stats ? '.collapsed' : ''),
-    h('div.cgroup-head', { on: { click: () => { grp.classList.toggle('collapsed'); const c = store.get('groups.collapsed', {}); c.Stats = grp.classList.contains('collapsed'); store.set('groups.collapsed', c); } } },
-      h('span.chev', '▾'), 'Last render', h('span.count', `${stats.length} bars`)),
+  const grp = collapsibleGroup('Stats', [h('span.chev', '▾'), 'Last render', h('span.count', `${stats.length} bars`)],
     h('div.cgroup-body', h('div.stats' + (hasPanel ? '.has-panel' : ''),
       (r.warnings || []).length ? h('div.warnings', r.warnings.map((w) => h('div', '⚠ ' + w))) : null,
       notesBlock(r.notes && r.notes.length ? r.notes : previewNotes),
@@ -2054,6 +2051,8 @@ function bindKeys() {
       case 'm': case 'M': toggleNav(); break;
       case '[': togglePanel('left'); break;
       case ']': togglePanel('right'); break;
+      case ',': setAllGroups(false); break;
+      case '.': setAllGroups(true); break;
       case 'd': case 'D': toggleDrawer(); break;
       case 'l': case 'L': $('#live-toggle').click(); break;
       case 'c': case 'C': if (!e.repeat) { $('#btn-compare').classList.add('held'); viewer.setComparing(true); } break;
@@ -2078,7 +2077,7 @@ function showShortcuts() {
     ['1 / 2 / 3', 'Page / Context / Plot only'], ['Ctrl+Enter', 'Recompile the paper (in the editor: save the section + recompile)'], ['Ctrl+S', 'Save the section and recompile (editor), or flush the spec save'],
     ['Ctrl+F', 'Find in the section (Shift+Ctrl+F replace, Alt+G go to line)'], ['Ctrl+J', 'Show the editor line on the page (or Ctrl+click the line)'], ['Ctrl+/', 'Comment / uncomment the selected lines with % (in the editor)'], ['M', 'Menu: sections, pages, figures'],
     ['R', 'Render + recompile the current spec'], ['L', 'Toggle the live overlay'], ['C (hold)', 'Compare: hide the overlay to see the compiled figure'],
-    ['E', 'Focus the TeX editor'], ['[ / ]', 'Hide / show the left (TeX editor) / right (controls) panel'], ['D', 'Toggle the Data drawer'], ['Drag', 'Pan the page · click a figure to select it · click text to open its line in the editor'], ['Double-click slider', 'Reset to default'],
+    ['E', 'Focus the TeX editor'], ['[ / ]', 'Hide / show the left (TeX editor) / right (controls) panel'], [', / .', 'Open / close every group in the right panel'], ['D', 'Toggle the Data drawer'], ['Drag', 'Pan the page · click a figure to select it · click text to open its line in the editor'], ['Double-click slider', 'Reset to default'],
   ];
   modal({ title: 'Keyboard shortcuts', cancel: null, actions: [{ label: 'Close', kind: 'primary', value: true }],
     body: h('div.kbd-table', rows.map(([k, v]) => [h('span', k.split(' / ').map((x, i) => [i ? ' / ' : '', h('kbd', x)])), h('span', v)])) });

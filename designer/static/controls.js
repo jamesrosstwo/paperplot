@@ -5,6 +5,32 @@ import { h, store, clamp, plainTex } from './ui.js';
 
 // fallback when GET /api/controls carries no `groups` (spec.GROUPS is the reference order)
 const GROUP_ORDER = ['Theme', 'Size', 'Layout', 'Panels', 'Bars', 'Lines', 'Order', 'Axes', 'Legend', 'Error bars', 'Colors'];
+
+// Sidebar groups (controls, Data, Last render) start closed; a group the viewer opened stays open (per browser).
+const GROUPS_KEY = 'groups.open';
+export function groupCollapsed(name) { return !store.get(GROUPS_KEY, {})[name]; }
+export function rememberGroup(name, collapsed) {
+  const open = store.get(GROUPS_KEY, {});
+  if (collapsed) delete open[name]; else open[name] = true;
+  store.set(GROUPS_KEY, open);
+}
+/** A collapsible sidebar group: head (click toggles) + body, closed unless the viewer opened it before. */
+export function collapsibleGroup(name, headChildren, body) {
+  const grp = h('div.cgroup' + (groupCollapsed(name) ? '.collapsed' : ''), { dataset: { group: name } },
+    h('div.cgroup-head', { on: { click: () => {
+      grp.classList.toggle('collapsed');
+      rememberGroup(name, grp.classList.contains('collapsed'));
+    } } }, ...headChildren),
+    body);
+  return grp;
+}
+/** Open (false) or close (true) every sidebar group; remembered like a click on each. */
+export function setAllGroups(collapsed) {
+  document.querySelectorAll('#right .cgroup').forEach((g) => {
+    g.classList.toggle('collapsed', collapsed);
+    if (g.dataset.group) rememberGroup(g.dataset.group, collapsed);
+  });
+}
 const ARM_ORDER_MODES = [['as_listed', 'As listed'], ['pooled', 'Pooled rate (best first)'], ['mean', 'Mean rate (best first)'], ['manual', 'Manual']];
 const GREEK = { alpha: 'α', beta: 'β', gamma: 'γ', delta: 'δ', epsilon: 'ε', theta: 'θ', lambda: 'λ', mu: 'μ', pi: 'π', rho: 'ρ', sigma: 'σ', tau: 'τ', phi: 'φ', psi: 'ψ', omega: 'ω' };
 /** One-line plain label for an arm / legend name written in TeX ("$\mathrm{\pi}_{0.5}$ (base)" -> "π0.5 (base)"). */
@@ -139,7 +165,6 @@ export class ControlPanel {
   constructor(container, { onChange, getData }) {
     this.container = container; this.onChange = onChange; this.getData = getData || (() => ({ arms: [], colors: {}, levels: [], cells: {} }));
     this.defs = []; this.rows = new Map(); this.style = {}; this.resetTo = {}; this.armSwatches = []; this.groupOrder = GROUP_ORDER;
-    this.collapsed = store.get('groups.collapsed', {});
   }
 
   /** Redraw the editors that list the spec's arms / levels (after a data edit). */
@@ -183,14 +208,7 @@ export class ControlPanel {
 
   _group(name, defs) {
     const body = h('div.cgroup-body', defs.map((c) => this._row(c)));
-    const grp = h('div.cgroup' + (this.collapsed[name] ? '.collapsed' : ''),
-      h('div.cgroup-head', { on: { click: () => {
-        grp.classList.toggle('collapsed');
-        this.collapsed[name] = grp.classList.contains('collapsed');
-        store.set('groups.collapsed', this.collapsed);
-      } } }, h('span.chev', '▾'), name, h('span.count', String(defs.length))),
-      body);
-    return grp;
+    return collapsibleGroup(name, [h('span.chev', '▾'), name, h('span.count', String(defs.length))], body);
   }
 
   _row(c) {
@@ -525,16 +543,9 @@ export class DataEditor {
     const seg = h('div.seg.small',
       h('button', { type: 'button', class: src === 'inline' ? 'on' : '', on: { click: () => this._switch('inline') } }, 'Inline'),
       h('button', { type: 'button', class: src === 'dataset' ? 'on' : '', on: { click: () => this._switch('dataset') } }, 'Dataset'));
-    const collapsed = store.get('groups.collapsed', {});
     const body = h('div.de', h('div.row', { style: { justifyContent: 'space-between' } }, h('span.de-label', 'Source'), seg),
       src === 'inline' ? this._inline(d) : this._dataset(d));
-    const grp = h('div.cgroup' + (collapsed.Data ? '.collapsed' : ''),
-      h('div.cgroup-head', { on: { click: () => {
-        grp.classList.toggle('collapsed');
-        const c = store.get('groups.collapsed', {}); c.Data = grp.classList.contains('collapsed'); store.set('groups.collapsed', c);
-      } } }, h('span.chev', '▾'), 'Data', h('span.count', src)),
-      body);
-    this.container.replaceChildren(grp);
+    this.container.replaceChildren(collapsibleGroup('Data', [h('span.chev', '▾'), 'Data', h('span.count', src)], h('div.cgroup-body', body)));
   }
 
   _changed(rebuild = false) { this.onChange(); if (rebuild) this.build(this.spec); }
