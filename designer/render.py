@@ -647,6 +647,8 @@ def _grouped_bars(spec, style, data, warns):
     edges = [_darken(f, style["edge_darken"]) if edge_w else "none" for f in fills]
     # legend in arm order; an arm with no data at any level (of any panel) keeps its slot but has no legend entry
     shown = [i for i in range(n_arms) if any(c is not None for p in panels for c in p["arms"][i]["counts"])]
+    if style.get("legend_empty_arms"):           # keep arms with no data yet (all n/a) labelled
+        shown = list(range(n_arms))
     for i in sorted(set(range(n_arms)) - set(shown)):
         warns.append(f"arm {shared[i]['name']!r} has no data; left out of the legend")
     handles = [Patch(facecolor=fills[i], edgecolor=edges[i], linewidth=edge_w, hatch=shared[i].get("hatch"))

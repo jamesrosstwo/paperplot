@@ -156,6 +156,7 @@ COMBOS = {
     "level_pin_first": ({"level_sort": "desc"}, 2),
     "divider_style": ({"divider_before": 1}, "theme"),
     "dup_ci_color": ({"_dup": True}, "#00AA00"),
+    "legend_empty_arms": ({"_empty_arm": True}, True),
     "grid_rows": ({"split_groups": 2}, 1),
     "grid_cols": ({"split_groups": 2}, 2),
     "grid_fill": ({"split_groups": 3, "grid_cols": 2}, "columns"),
@@ -179,6 +180,8 @@ def test_every_style_key_is_honoured():
         for k, v in setup.items():
             if k == "_dup":
                 s["data"]["arms"][0]["counts"][0] = [16, 20, {"dup": True}]
+            elif k == "_empty_arm":
+                s["data"]["arms"][-1]["counts"] = [None] * len(s["data"]["arms"][-1]["counts"])
             else:
                 s["style"][k] = v
         ref = render.preview_png(s, dpi=100)

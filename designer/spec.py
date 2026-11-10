@@ -177,6 +177,8 @@ def _grouped_bars_table():
         ("legend_pad", "Legend gap", "slider", 0.0, "Legend",
          dict(min=0.0, max=2.0, step=0.05, help="Space between legend and axes, in legend font sizes "
                                                 "(paperplot's theme uses 0.2)")),
+        ("legend_empty_arms", "Legend: arms without data", "toggle", False, "Legend",
+         dict(help="Also list arms that are n/a everywhere (off: they keep their bar slot but get no legend entry)")),
         ("tick_fontsize", "Tick size (pt)", "slider", None, "Axes",
          dict(min=4, max=12, step=0.5, nullable=True, help="Value (y) tick labels and the n/a mark; auto = theme")),
         ("xtick_fontsize", "Group label size (pt)", "slider", 7, "Axes",

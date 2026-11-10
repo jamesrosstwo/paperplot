@@ -691,6 +691,31 @@ def test_bayes_interval_of_zero_and_full_counts():
         assert len(z) == 2 and z[0]["lo"] > 0 and z[1]["hi"] < 1, z
 
 
+def test_legend_empty_arms():
+    """An arm that is n/a everywhere keeps its slot; legend_empty_arms also gives it a legend entry."""
+    s = load_seed("mug_baselines_panels")
+    s["style"]["legend_loc"] = "above"
+    name = s["data"]["arms"][-1]["name"]
+    for p in s["data"]["panels"]:
+        for a in p["arms"]:
+            if a["name"] == name:
+                a["counts"] = [None] * len(a["counts"])
+    legend_names = lambda fig: [t.get_text() for ax in fig.axes if ax.get_legend()
+                                for t in ax.get_legend().get_texts()]
+    fig, _, warns = _draw(s)
+    try:
+        assert name not in legend_names(fig) and any("left out of the legend" in w for w in warns)
+    finally:
+        render.plt.close(fig)
+    s["style"]["legend_empty_arms"] = True
+    assert spec.validate(s) == []
+    fig, _, warns = _draw(s)
+    try:
+        assert name in legend_names(fig) and not any("left out of the legend" in w for w in warns)
+    finally:
+        render.plt.close(fig)
+
+
 def test_hidden_arms_and_levels():
     """hidden_arms / hidden_levels leave arms and levels out of the plot, legend and stats; the data stays."""
     for make in (lambda: load_seed("mug_baselines_panels"), lines_panels_seed):
