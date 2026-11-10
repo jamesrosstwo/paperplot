@@ -339,19 +339,25 @@ def _sort_levels(style, levels, arms):
     return [levels[j] for j in perm], [dict(a, counts=[a["counts"][j] for j in perm]) for a in arms]
 
 
+def _horizontal(style):
+    return style.get("orientation") == "horizontal"
+
+
 def _y_formatter(ax, style):
-    ax.yaxis.set_major_locator(MultipleLocator(style["ytick_step"]))
+    """Ticks of the value axis (y; x for horizontal bars)."""
+    axis = ax.xaxis if _horizontal(style) else ax.yaxis
+    axis.set_major_locator(MultipleLocator(style["ytick_step"]))
     if style["y_mode"] == "count":
         out_of = style.get("out_of")
         N = int(out_of) if out_of and float(out_of) == int(out_of) else (out_of or 20)
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v * N / 100:.0f}/{N}"))
+        axis.set_major_formatter(FuncFormatter(lambda v, _: f"{v * N / 100:.0f}/{N}"))
     elif style["y_mode"] == "fraction":
         # same tick positions as percent, labelled 0..1 without trailing zeros (step 20 -> 0, 0.2, ..., 1)
         step = Fraction(str(style["ytick_step"])) / 100
         dec = next((d for d in range(6) if (step * 10 ** d).denominator == 1), 6)
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v / 100:.{dec}f}".rstrip("0").rstrip(".") or "0"))
+        axis.set_major_formatter(FuncFormatter(lambda v, _: f"{v / 100:.{dec}f}".rstrip("0").rstrip(".") or "0"))
     else:
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}"))
+        axis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:.0f}"))
 
 
 def _legend(ax, handles, names, style, default_align="center", columnspacing=None):
@@ -396,8 +402,9 @@ def _bars_panel(ax, t, style, levels, arms, base_colors, warns, stats, ylabel, p
     # a None count = not evaluated; pp.bar marks it with na_label and draws no bar
     series = {a["name"]: [float("nan") if c is None else 100 * c[0] / c[1] for c in parts[i]]
               for i, a in enumerate(arms)}
+    horiz = _horizontal(style)
     pp.bar(ax, levels, series, colors=base_colors, ylabel=ylabel or None, ylim=(0, 100), legend=None,
-           group_width=style["group_width"])
+           group_width=style["group_width"], orientation="horizontal" if horiz else "vertical")
     # pp.bar adds one Rectangle per drawn bar, arm by arm, level by level
     drawn = [p for p in ax.patches if isinstance(p, Rectangle)]
     present = [(i, j) for i in range(len(arms)) for j, c in enumerate(parts[i]) if c is not None]
@@ -447,24 +454,35 @@ def _bars_panel(ax, t, style, levels, arms, base_colors, warns, stats, ylabel, p
                 continue
             bar = bar_at[(i, j)]
             # drawn from lo to hi, not around k/n: a Bayes interval of 0/n or n/n can exclude the observed rate
+            if horiz:
+                ax.errorbar(50 * (lo + hi), bar.get_y() + bar.get_height() / 2, xerr=50 * (hi - lo), fmt="none",
+                            ecolor=color, elinewidth=style["ci_linewidth"],
+                            capsize=style["ci_capsize"], capthick=style["ci_linewidth"], zorder=5)
+                continue
             ax.errorbar(bar.get_x() + bar.get_width() / 2, 50 * (lo + hi), yerr=50 * (hi - lo), fmt="none",
                         ecolor=color, elinewidth=style["ci_linewidth"],
                         capsize=style["ci_capsize"], capthick=style["ci_linewidth"], zorder=5)
 
 
 def _bars_finish(fig, ax, t, style, levels, warns, *, multi=False, bottom=True, title=None):
-    """Text sizes, divider, y ticks, label angle, panel title (the second half of the original chart)."""
+    """Text sizes, divider, y ticks, label angle, panel title (the second half of the original chart).
+
+    tick_fontsize / ylabel / y ticks describe the value axis and xtick_fontsize the group labels, also when
+    orientation is horizontal (value axis along x, groups down y)."""
+    horiz = _horizontal(style)
+    val_axis, cat_axis = ("x", "y") if horiz else ("y", "x")
     ytick = style.get("tick_fontsize")
     if ytick is not None:
-        ax.tick_params(axis="y", labelsize=ytick)
+        ax.tick_params(axis=val_axis, labelsize=ytick)
     xtick = style.get("xtick_fontsize") if style.get("xtick_fontsize") is not None else ytick
     if xtick is not None:
-        ax.tick_params(axis="x", labelsize=xtick)
+        ax.tick_params(axis=cat_axis, labelsize=xtick)
     na_size = ytick if ytick is not None else matplotlib.rcParams["ytick.labelsize"]
     for text in ax.texts:          # the n/a mark: tick-label size
         text.set_fontsize(na_size)
     if style.get("ylabel_fontsize") is not None:
-        ax.yaxis.label.set_fontsize(style["ylabel_fontsize"])
+        (ax.xaxis if horiz else ax.yaxis).label.set_fontsize(style["ylabel_fontsize"])
+    rule = ax.axhline if horiz else ax.axvline
     d = style.get("divider_before")
     if d is not None:
         if not 0 < d < len(levels):
@@ -473,13 +491,13 @@ def _bars_finish(fig, ax, t, style, levels, warns, *, multi=False, bottom=True, 
             dv = t.bars.get("divider") or {}
             w = dv.get("width", 0.5)
             dash = [x / w if matplotlib.rcParams["lines.scale_dashes"] else x for x in dv.get("dash", [3, 3])]
-            ax.axvline(d - 0.5, color=t.resolve(dv.get("color", "gray"), "bars.divider.color"), linewidth=w,
-                       dashes=dash, zorder=1.5)
+            rule(d - 0.5, color=t.resolve(dv.get("color", "gray"), "bars.divider.color"), linewidth=w,
+                 dashes=dash, zorder=1.5)
         else:
-            ax.axvline(d - 0.5, color=t.resolve(style["ci_color"], "style.ci_color"), linestyle=(0, (4, 3)),
+            rule(d - 0.5, color=t.resolve(style["ci_color"], "style.ci_color"), linestyle=(0, (4, 3)),
                        linewidth=style["ci_linewidth"], zorder=0.5)
     _y_formatter(ax, style)
-    rot = style.get("xtick_rotation") or 0
+    rot = 0 if horiz else style.get("xtick_rotation") or 0     # horizontal: group labels are already level
     if rot:
         for label in ax.get_xticklabels():   # angled, right end at the tick (figures/mug_conditions.py)
             label.set_rotation(rot)
@@ -492,7 +510,7 @@ def _bars_finish(fig, ax, t, style, levels, warns, *, multi=False, bottom=True, 
 
 def _panel_title(fig, ax, style, title):
     loc = style.get("panel_title_loc", "upper right")
-    if not title or loc in ("none", "left", "right"):    # 'left'/'right': the panel's y label (see _grouped_bars)
+    if not title or loc in ("none", "left", "right", "below"):   # the panel's y / x label (see _aside_title_label)
         return
     fs = style.get("panel_title_fontsize")
     fs = fs if fs is not None else matplotlib.rcParams["axes.titlesize"]
@@ -517,14 +535,19 @@ def _bars_in_points(spec, style, data, warns):
     """style with bar_width_pt / bar_gap_pt turned into the group_width / bar_fill ratios for this figure.
 
     The axes width in points is known only after layout, so the figure is laid out once with the ratios as they
-    are; the x range (-0.5 .. groups - 0.5) does not depend on bar widths, so one pass gives the exact scale."""
+    are; the x range (-0.5 .. groups - 0.5) does not depend on bar widths, so one pass gives the exact scale.
+    Horizontal bars: the same along the axes height."""
     probe = dict(style, bar_width_pt=None, bar_gap_pt=None)
     fig, _ = _grouped_bars(spec, probe, data, [])
     try:
         fig.draw_without_rendering()
         ax = fig.axes[0]                               # stacked panels share one width
-        width_pt = ax.get_position().width * fig.get_figwidth() * 72
-        x0, x1 = ax.get_xlim()
+        if _horizontal(style):                         # groups run down the y axis
+            width_pt = ax.get_position().height * fig.get_figheight() * 72
+            x0, x1 = ax.get_ylim()
+        else:
+            width_pt = ax.get_position().width * fig.get_figwidth() * 72
+            x0, x1 = ax.get_xlim()
     finally:
         plt.close(fig)
     u = abs(x1 - x0) / width_pt                        # data units per point
@@ -578,12 +601,13 @@ def _grouped_bars(spec, style, data, warns):
     # panel_title_loc 'left' / 'right': each panel's title is its rotated y label (left: beside the ticks; right: at the
     # right edge), reading bottom to top like the y label, which is one figure-level label on the left shared by every panel
     # (panel_ylabel does not apply)
-    title_side = style.get("panel_title_loc") if multi and style.get("panel_title_loc") in ("left", "right") else None
+    # 'below': each title is the panel's x label, under its level labels, with the same shared y label
+    title_side = style.get("panel_title_loc") if multi and style.get("panel_title_loc") in ASIDE_LOCS else None
     titles_aside = title_side is not None
     stats = []
     for pi, (ax, p) in enumerate(zip(axes, panels)):
         show_y = not multi or ymode == "each" or (ymode == "first" and pi == 0) or (ymode == "middle" and pi == n_p // 2)
-        ylabel = p.get("title") if titles_aside else (style["ylabel"] if show_y else None)
+        ylabel = (p.get("title") if title_side != "below" else None) if titles_aside else (style["ylabel"] if show_y else None)
         _bars_panel(ax, t, style, p["levels"], p["arms"], base_colors, warns, stats,
                     ylabel, p.get("title") if multi else None)
     edge_w = t.bars.get("edge_width", 0)
@@ -602,7 +626,7 @@ def _grouped_bars(spec, style, data, warns):
         _bars_finish(fig, ax, t, style, p["levels"], warns, multi=multi, bottom=pi == n_p - 1,
                      title=p.get("title") if multi else None)
         if titles_aside:
-            _aside_title_label(ax, style, title_side)
+            _aside_title_label(ax, style, title_side, p.get("title"))
     if titles_aside:
         _shared_ylabel(fig, style)
     _tidy_and_check(fig, axes, max(len(p["levels"]) for p in panels), warns)
@@ -610,10 +634,19 @@ def _grouped_bars(spec, style, data, warns):
 
 
 # --------------------------------------------------------------------------- lines
-def _aside_title_label(ax, style, side):
-    """panel_title_loc left/right: the panel title is the y label; size it and move it to the chosen side."""
+ASIDE_LOCS = ("left", "right", "below")
+
+
+def _aside_title_label(ax, style, side, title=None):
+    """panel_title_loc left/right: the panel title is the y label, sized and moved to the chosen side; below: it is
+    the x label, under the panel's level labels."""
     fs = style.get("panel_title_fontsize")
-    ax.yaxis.label.set_fontsize(fs if fs is not None else matplotlib.rcParams["axes.titlesize"])
+    fs = fs if fs is not None else matplotlib.rcParams["axes.titlesize"]
+    if side == "below":
+        if title:
+            ax.set_xlabel(title, fontsize=fs)
+        return
+    ax.yaxis.label.set_fontsize(fs)
     if side == "right":                                # same reading direction as the shared y label (bottom to top)
         ax.yaxis.set_label_position("right")
 
@@ -657,7 +690,7 @@ def _lines(spec, style, data, warns):
         fig, ax = pp.subplots(f"{style['width_pt']}pt", height=f"{style['height_pt']}pt")
         axes = [ax]
     loc = style.get("panel_title_loc")
-    side = loc if multi and loc in ("left", "right") else None
+    side = loc if multi and loc in ASIDE_LOCS else None
     ymode = style.get("panel_ylabel", "each")
     stats, first_line = [], {}
     for pi, (ax, p) in enumerate(zip(axes, panels)):
@@ -665,11 +698,12 @@ def _lines(spec, style, data, warns):
         for i, line in _lines_panel(ax, t, style, p["levels"], p["arms"], base_colors, warns, stats, title).items():
             first_line.setdefault(i, line)
         show_y = not multi or ymode == "each" or (ymode == "first" and pi == 0) or (ymode == "middle" and pi == n_p // 2)
-        _lines_axes(ax, t, style, p["levels"], title if side else (style.get("ylabel") if show_y else None))
+        ylabel = (title if side != "below" else None) if side else (style.get("ylabel") if show_y else None)
+        _lines_axes(ax, t, style, p["levels"], ylabel)
         if multi and pi != n_p - 1 and style.get("share_x_labels"):
             ax.tick_params(axis="x", labelbottom=False)
         if side:
-            _aside_title_label(ax, style, side)
+            _aside_title_label(ax, style, side, title)
         elif title:
             _panel_title(fig, ax, style, title)
     for i in range(len(shared)):
@@ -774,14 +808,15 @@ def _merge_na_marks(ax, r) -> bool:
     """Merge colliding n/a marks of one group into a single centred mark; True if any merged."""
     from matplotlib.text import Annotation
     marks = [t for t in ax.texts if isinstance(t, Annotation)]
+    g = 1 if ax.yaxis_inverted() else 0          # groups down an inverted y axis: horizontal bars
     by_level: dict[int, list] = {}
     for t in marks:
-        by_level.setdefault(int(round(t.xy[0])), []).append(t)
+        by_level.setdefault(int(round(t.xy[g])), []).append(t)
     merged = False
     for grp in by_level.values():
         if len(grp) < 2:
             continue
-        grp.sort(key=lambda t: t.xy[0])
+        grp.sort(key=lambda t: t.xy[g])
         ext = [t.get_window_extent(r) for t in grp]
         runs, run = [], [0]
         for i in range(1, len(grp)):     # runs of neighbouring marks that collide ("n/an/an/a")
@@ -795,7 +830,8 @@ def _merge_na_marks(ax, r) -> bool:
             if len(run) < 2:
                 continue
             keep = grp[run[0]]
-            keep.xy = (sum(grp[i].xy[0] for i in run) / len(run), keep.xy[1])
+            mid = sum(grp[i].xy[g] for i in run) / len(run)
+            keep.xy = (keep.xy[0], mid) if g else (mid, keep.xy[1])
             for i in run[1:]:
                 grp[i].remove()
             merged = True

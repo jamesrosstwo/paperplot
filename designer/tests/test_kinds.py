@@ -240,6 +240,34 @@ def test_panel_titles_left_as_y_labels():
         render.plt.close(fig)
 
 
+@pytest.mark.parametrize("kind", ["bars", "lines"])
+def test_panel_titles_below_with_levels_on_every_panel(kind):
+    """panel_title_loc=below: each title is its panel's x label, under that panel's level labels; one shared y label."""
+    s = load_seed("mug_baselines_panels") if kind == "bars" else lines_panels_seed()
+    s["style"].update(panel_title_loc="below", panel_title_fontsize=9, share_x_labels=False,
+                      ylabel="Success rate (n=20)", panel_ylabel="each")
+    assert spec.validate(s) == []
+    fig, _, _ = _draw(s)
+    try:
+        axes = fig.axes
+        assert [ax.get_xlabel() for ax in axes] == ["Mug", "Push-T", "Rope"]
+        assert {ax.xaxis.label.get_fontsize() for ax in axes} == {9}
+        assert [ax.get_ylabel() for ax in axes] == ["", "", ""]
+        assert fig._supylabel.get_text() == "Success rate (n=20)"
+        assert all(not [t for t in ax.texts if not isinstance(t, Annotation)] for ax in axes)   # no corner titles
+        fig.canvas.draw()
+        r = fig.canvas.get_renderer()
+        for i, ax in enumerate(axes):
+            ticks = [t.get_window_extent(r) for t in ax.get_xticklabels() if t.get_visible() and t.get_text()]
+            assert ticks                                            # level labels on every panel
+            title = ax.xaxis.label.get_window_extent(r)
+            assert title.y1 <= min(b.y0 for b in ticks) + 0.5      # title under the level labels
+            if i + 1 < len(axes):                                   # and above the next panel
+                assert title.y0 >= axes[i + 1].get_window_extent(r).y1 - 0.5
+    finally:
+        render.plt.close(fig)
+
+
 def _bar_boxes_pt(fig):
     """[(x0, x1) in points] of the drawn bars, per axes, left to right."""
     fig.canvas.draw()
@@ -283,6 +311,45 @@ def test_bar_width_and_gap_in_points():
     fig, _, warns = _draw(s)
     render.plt.close(fig)
     assert any("bars overlap" in w for w in warns), warns
+
+
+def test_horizontal_bars():
+    """orientation=horizontal: groups top to bottom (first on top), bars grow left to right, value ticks, label,
+    intervals and the divider follow the x axis, bar_width_pt is the bar thickness, one legend above."""
+    s = load_seed("mug_conditions")
+    s["style"].update(orientation="horizontal", height_pt=300, bar_width_pt=6, bar_gap_pt=1, ci="wilson",
+                      level_sort="none", divider_before=1, y_mode="fraction", ylabel="Success rate (n=20)",
+                      tick_fontsize=7, xtick_fontsize=8, legend_loc="above", xtick_rotation=45)
+    assert spec.validate(s) == []
+    fig, stats, warns = _draw(s)
+    try:
+        ax, = fig.axes
+        levels = s["data"]["levels"]
+        assert [t.get_text() for t in ax.get_yticklabels()] == levels
+        assert ax.yaxis_inverted() and ax.get_xlim() == (0, 100)
+        assert ax.get_xlabel() == "Success rate (n=20)" and ax.get_ylabel() == ""
+        assert {t.get_rotation() for t in ax.get_yticklabels()} == {0}
+        assert {t.get_fontsize() for t in ax.get_yticklabels()} == {8}
+        fig.canvas.draw()
+        xt = [t for t in ax.get_xticklabels() if 0 <= t.get_position()[0] <= 100]
+        assert [t.get_text() for t in xt] == ["0", "0.2", "0.4", "0.6", "0.8", "1"]
+        assert {t.get_fontsize() for t in xt} == {7}
+        bars = [p for p in ax.patches if isinstance(p, Rectangle) and p.get_height() < 1]
+        first = s["data"]["arms"][0]
+        k, n = first["counts"][0][:2]
+        top = min(bars, key=lambda b: b.get_y())                 # first group, first arm: the top bar
+        assert top.get_x() == 0 and abs(top.get_width() - 100 * k / n) < 1e-9
+        r = fig.canvas.get_renderer()
+        thick = {round(b.get_window_extent(r).height * 72 / fig.dpi, 2) for b in bars}
+        assert thick == {6.0}
+        segs = [c for c in ax.collections if c.get_segments()]  # wilson intervals: horizontal segments
+        assert segs and all(abs(sg[0][1] - sg[1][1]) < 1e-9 for c in segs for sg in c.get_segments()[:1])
+        assert any(abs(l.get_ydata()[0] - 0.5) < 1e-9 and l.get_ydata()[0] == l.get_ydata()[1]
+                   for l in ax.get_lines())                      # divider under the first group
+        assert ax.get_legend() is not None
+        assert not [w for w in warns if "squeezed" in w or "does not fit" in w], warns
+    finally:
+        render.plt.close(fig)
 
 
 def test_dup_interval_colors():

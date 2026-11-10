@@ -71,7 +71,7 @@ def _opts(*values):
 
 
 ARM_ORDER_REST = ("pooled", "mean", "manual", "as_listed")
-PANEL_TITLE_LOCS = ("upper right", "upper left", "upper center", "above left", "above right", "left", "right", "none")
+PANEL_TITLE_LOCS = ("upper right", "upper left", "upper center", "above left", "above right", "left", "right", "below", "none")
 DUP_CI_DEFAULT = "#DDAA33"          # Paul Tol high-contrast yellow (Classical bars are tol-yellow #CCBB44)
 DUP_NOTE = "yellow CI = positions re-run; latest rollout counted"
 
@@ -116,7 +116,8 @@ def _panel_rows():
          dict(help="data.panels: x tick labels only under the bottom panel")),
         ("panel_title_loc", "Panel title", "dropdown", "upper right", "Panels",
          dict(options=_opts(*PANEL_TITLE_LOCS), help="upper *: inside the axes; above *: over the axes; left / right: rotated beside the "
-                                                               "y ticks / right edge, with the y label shared by all panels")),
+                                                               "y ticks / right edge; below: under the panel's x labels. "
+                                                               "left / right / below share one y label across all panels")),
         ("panel_title_fontsize", "Panel title size (pt)", "slider", None, "Panels",
          dict(min=4, max=16, step=0.5, nullable=True, help="auto = theme title size")),
         ("panel_ylabel", "Panel y label", "dropdown", "each", "Panels",
@@ -126,6 +127,10 @@ def _panel_rows():
 
 def _grouped_bars_table():
     return _head_rows() + _panel_rows() + [
+        ("orientation", "Orientation", "dropdown", "vertical", "Bars",
+         dict(options=_opts("vertical", "horizontal"), help="horizontal: bars grow left to right, groups stacked top "
+                                                            "to bottom; y label, y ticks and tick size then describe "
+                                                            "the x (value) axis")),
         ("group_width", "Group width / group gap", "slider", 0.66, "Bars",
          dict(min=0.3, max=1.0, step=0.005, help="Fraction of each group slot the bars span; the space between groups "
                                                  "is 1 - this (0.66 leaves a 0.34 gap)")),

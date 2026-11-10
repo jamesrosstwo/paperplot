@@ -141,7 +141,7 @@ def test_preview_fast_and_writes_nothing():
 
 # one changed value per style key; each must change the picture
 CHANGES = {
-    "theme": "acme_tnr", "font_family": "DejaVu Serif", "width_pt": 300, "height_pt": 100, "group_width": 0.9,
+    "theme": "acme_tnr", "orientation": "horizontal", "font_family": "DejaVu Serif", "width_pt": 300, "height_pt": 100, "group_width": 0.9,
     "bar_fill": 0.9, "edge_width": 1.2, "na_label": "--", "legend_loc": "right", "legend_cols": 2,
     "legend_fontsize": 8, "tick_fontsize": 8, "xtick_fontsize": 10, "ylabel": "Rate", "ylabel_fontsize": 10,
     "y_mode": "percent", "out_of": 10, "ytick_step": 20, "divider_before": 1, "ci": "bayes", "ci_level": 0.8,

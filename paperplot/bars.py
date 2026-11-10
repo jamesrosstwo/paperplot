@@ -58,7 +58,8 @@ def bar(ax,
         ylabel: str | None = None,
         ylim: tuple[float, float] | None = None,
         legend=_UNSET,
-        dividers: Sequence[int] = ()):
+        dividers: Sequence[int] = (),
+        orientation: str = "vertical"):
     """Grouped bar chart.
 
     categories : x-axis groups (e.g. tasks).
@@ -75,6 +76,9 @@ def bar(ax,
     NaN values leave an empty slot marked with bars.missing_label (e.g. 'n/a').
     Fill darkening, outlines, bar width, baseline and group separators come from
     the theme's `bars:` section (see themes/acme.yaml for all of them in use).
+    orientation: 'vertical' (bars grow up, categories along x) or 'horizontal' (bars grow left to right,
+                 categories down the y axis, first category and first series on top; ylabel / ylim then
+                 describe the x axis).
     legend     : 'top' (one row above plot, aligned by bars.legend_align) | 'right' | None.
                  A single series gets no legend unless `legend` is passed explicitly.
 
@@ -107,6 +111,9 @@ def bar(ax,
     zero_pt = cfg.get("zero_bar_pt", 1.0)
     _sizes = t.font.get("sizes", {})
     ann_size = _sizes.get("annotation", _sizes.get("base", 8))
+    if orientation not in ("vertical", "horizontal"):
+        raise ValueError(f"orientation must be 'vertical' or 'horizontal', not {orientation!r}")
+    horiz = orientation == "horizontal"
     names = list(series)
     n, m = len(names), len(categories)
     if colors is None:
@@ -122,8 +129,9 @@ def bar(ax,
     slot = group_width / n
     # the surface gap is specified in points; convert to data units
     fig = ax.figure
-    ax_w_pt = ax.get_position().width * fig.get_figwidth() * 72
-    gap = gap_pt / ax_w_pt * (m - 1 + 1.0)  # approx data units per point over the x-range
+    pos = ax.get_position()
+    ax_w_pt = (pos.height * fig.get_figheight() if horiz else pos.width * fig.get_figwidth()) * 72
+    gap = gap_pt / ax_w_pt * (m - 1 + 1.0)  # approx data units per point over the category range
     width = max(slot - gap, slot * 0.5)
     if "bar_width" in cfg:  # fraction of each bar's slot; overrides gap_pt
         width = slot * cfg["bar_width"]
@@ -142,7 +150,8 @@ def bar(ax,
             if np.isnan(v):
                 missing.append(offs[j] + width / 2)
                 continue
-            p = Rectangle((offs[j], baseline), width, v - baseline,
+            xy, wh = ((baseline, offs[j]), (v - baseline, width)) if horiz else ((offs[j], baseline), (width, v - baseline))
+            p = Rectangle(xy, *wh,
                           facecolor=cmap[name], edgecolor=C.SURFACE if h else ec,
                           linewidth=0 if h else edge_w, hatch=h, zorder=2)
             ax.add_patch(p)
@@ -150,7 +159,11 @@ def bar(ax,
                 zeros.append((offs[j], width, cmap[name]))
             lo_e, hi_e = (err[0, j], err[1, j]) if err is not None else (0.0, 0.0)
             tips.append((name, j, offs[j] + width / 2, v, v - lo_e, v + hi_e))
-        if err is not None:
+        if err is not None and horiz:
+            ax.errorbar(vals, offs + width / 2, xerr=err, fmt="none",
+                        ecolor=err_color, elinewidth=err_w, capsize=err_cap,
+                        capthick=err_w, zorder=3)
+        elif err is not None:
             ax.errorbar(offs + width / 2, vals, yerr=err, fmt="none",
                         ecolor=err_color, elinewidth=err_w, capsize=err_cap,
                         capthick=err_w, zorder=3)
@@ -159,15 +172,23 @@ def bar(ax,
                                  linewidth=0 if h else edge_w, label=name))
 
     # axes
-    ax.set_xticks(x, categories)
-    ax.set_xlim(-0.5, m - 0.5)
-    ax.axhline(baseline, color=base_color, linewidth=base_w, zorder=2.5)
-    def _vrules(positions, style, where):  # dashed vertical rules; dash lengths in pt
+    if horiz:
+        ax.set_yticks(x, categories)
+        ax.set_ylim(m - 0.5, -0.5)                    # first category on top
+        ax.axvline(baseline, color=base_color, linewidth=base_w, zorder=2.5)
+        if mpl.rcParams["axes.grid"]:                 # the value grid follows the value axis
+            ax.yaxis.grid(False)
+            ax.xaxis.grid(True)
+    else:
+        ax.set_xticks(x, categories)
+        ax.set_xlim(-0.5, m - 0.5)
+        ax.axhline(baseline, color=base_color, linewidth=base_w, zorder=2.5)
+    def _vrules(positions, style, where):  # dashed rules between groups; dash lengths in pt
         w = style.get("width", 0.5)
         dash = [d / w if mpl.rcParams["lines.scale_dashes"] else d
                 for d in style.get("dash", [3, 3])]
         for xs in positions:
-            ax.axvline(xs, color=t.resolve(style.get("color", "gray"), f"bars.{where}.color"),
+            (ax.axhline if horiz else ax.axvline)(xs, color=t.resolve(style.get("color", "gray"), f"bars.{where}.color"),
                        linewidth=w, dashes=dash, zorder=1.5)
 
     if sep:  # between every pair of category groups
@@ -183,9 +204,9 @@ def bar(ax,
         lo, hi = min(allv), max(allv)
         pad = 0.12 * (hi - lo or 1)
         ylim = (min(lo - (pad if lo < baseline else 0), baseline), hi + pad)
-    ax.set_ylim(*ylim)
+    (ax.set_xlim if horiz else ax.set_ylim)(*ylim)
     if ylabel:
-        ax.set_ylabel(ylabel)
+        (ax.set_xlabel if horiz else ax.set_ylabel)(ylabel)
 
     # selective direct labels, in ink, at the bar tip (above whisker if any)
     if labels:
@@ -206,6 +227,11 @@ def bar(ax,
             if mpl.rcParams["axes.unicode_minus"]:
                 text = text.replace("-", "−")  # match the axis tick labels
             pad = 1.5 + (zero_pt if v == baseline else 0)
+            if horiz:
+                ax.annotate(text, (top, xc), xytext=(pad * d, 0), textcoords="offset points",
+                            ha="left" if d > 0 else "right", va="center", fontsize=ann_size,
+                            color=C.INK, zorder=4)
+                continue
             ax.annotate(text, (xc, top), xytext=(0, pad * d),
                         textcoords="offset points", ha="center",
                         va="bottom" if d > 0 else "top",
@@ -216,9 +242,13 @@ def bar(ax,
     # thickness (pt) on the side of the baseline the other bars grow toward
     if zero_pt:
         d = rest
-        tr = offset_copy(ax.transData, fig=ax.figure, y=d * zero_pt / 2, units="points")
+        if horiz:
+            tr = offset_copy(ax.transData, fig=ax.figure, x=d * zero_pt / 2, units="points")
+        else:
+            tr = offset_copy(ax.transData, fig=ax.figure, y=d * zero_pt / 2, units="points")
         for x0, w, color in zeros:
-            ax.add_line(Line2D([x0, x0 + w], [baseline, baseline], transform=tr, color=color,
+            xs, ys = ([baseline, baseline], [x0, x0 + w]) if horiz else ([x0, x0 + w], [baseline, baseline])
+            ax.add_line(Line2D(xs, ys, transform=tr, color=color,
                                linewidth=zero_pt, solid_capstyle="butt", zorder=2.6))
 
     # series with no data in a category keep their slot, marked in muted ink
@@ -226,6 +256,11 @@ def bar(ax,
     if missing_label:
         d = rest
         for xc in missing:
+            if horiz:
+                ax.annotate(missing_label, (baseline, xc), xytext=(1.5 * d, 0), textcoords="offset points",
+                            ha="left" if d > 0 else "right", va="center", fontsize=ann_size,
+                            color=C.INK_MUTED, zorder=4)
+                continue
             ax.annotate(missing_label, (xc, baseline), xytext=(0, 1.5 * d),
                         textcoords="offset points", ha="center",
                         va="bottom" if d > 0 else "top",
