@@ -209,6 +209,17 @@ def test_served_by_flask_app():
         assert ("javascript" in ctype) if f.endswith(".js") else ("css" in ctype), (f, ctype)
 
 
+def test_page_view_scrolls_through_every_page():
+    """The Page mode stacks every compiled page in one scrolling column (as in Overleaf), drawn lazily."""
+    html, pv, app = read("index.html"), read("pdfview.js"), read("app.js")
+    assert 'id="page" class="pages hidden"' in html and 'id="page-canvas"' not in html
+    viewer = pv[pv.index("export class PageViewer"):pv.index("export async function renderStack")]
+    assert "_renderNear" in viewer and "p.canvas.width = 0" in viewer    # only pages near the viewport keep a bitmap
+    assert "stage.addEventListener('scroll'" in viewer and "_trackPage" in viewer   # the pager follows scrolling
+    assert "box.page || this.pageNum" in viewer                         # focusBox scrolls to any page
+    assert "pagesEl: $('#page')" in app and "flashMark({ ...r.box, page: r.page })" in app
+
+
 if __name__ == "__main__":
     failed = 0
     for name, fn in sorted(globals().items()):

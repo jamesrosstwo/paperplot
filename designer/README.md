@@ -93,6 +93,8 @@ without `DESIGNER_TOKEN` unless `DESIGNER_HOST` is explicitly set to a loopback 
   click on the page opens its source line. Saves are compare-and-swap on the file's hash: if the file changed on disk
   (an Overleaf pull, another editor) nothing is written and you choose Copy my edits / Reload from disk / Keep mine.
   The hamburger (or `M`) lists sections, pages and figures. `[` / `]` hide the editor / the controls.
+- **Center: the paper.** Page mode shows every page in one scrolling column, as Overleaf does; pages are drawn
+  as they come near the viewport. The pager shows the page in view; ‹ / › (or ← / →) jump to the previous / next page.
 - **Right: spec controls**, built from `GET /api/controls` for the spec's kind (`grouped_bars` or `lines`; the Kind
   dropdown switches, keeping every setting that fits the new kind).
   - *Data*: inline counts `k / n`; empty = n/a; the small ↻ in a cell flags it as re-run (`[k, n, {dup: true}]`), drawn

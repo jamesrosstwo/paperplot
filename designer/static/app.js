@@ -46,7 +46,7 @@ let viewer, thumbs, controls, dataEditor, ed;
 
 function initComponents() {
   viewer = new PageViewer({
-    stage: $('#stage'), pageEl: $('#page'), canvas: $('#page-canvas'), boxesEl: $('#page-boxes'), overlayEl: $('#overlay'),
+    stage: $('#stage'), pagesEl: $('#page'), overlayEl: $('#overlay'),
     onClick: onPageClick,
     onChange: () => { updatePager(); updateZoomLabel(); thumbs && thumbs.setCurrent(viewer.pageNum); refreshPreviewDpi(); },
   });
@@ -204,10 +204,7 @@ async function loadPaper({ keepView = false } = {}) {
     updateBoxes(); updateOverlay(); updatePager();
     if (firstLoad && !keepView) {       // a figure selected before the PDF arrived (boot): show it now, zoom unchanged
       const f = selFig();
-      if (f && f.box && S.mode === 'page') {
-        if (viewer.pageNum !== f.box.page) await viewer.show(f.box.page);
-        viewer.focusBox(f.box);
-      }
+      if (f && f.box && S.mode === 'page') viewer.focusBox(f.box);
     }
   } catch (e) {
     if (S.pdf && keepView) { toast('Could not reload the PDF', { kind: 'err', detail: e.message }); return; }
@@ -601,7 +598,7 @@ function zoomFit() {
 function zoomFigure() {
   const f = selFig();
   const done = () => { updateZoomLabel(); refreshPreviewDpi(); };
-  if (f && f.box) { setMode('page'); if (viewer.pageNum !== f.box.page) viewer.show(f.box.page).then(() => { viewer.focusBox(f.box, { zoom: true }); done(); }); else { viewer.focusBox(f.box, { zoom: true }); done(); } }
+  if (f && f.box) { setMode('page'); viewer.focusBox(f.box, { zoom: true }); done(); }
 }
 
 function fitPlotZoom() {
@@ -748,8 +745,9 @@ async function selectFigure(fid, { focus = true, texLine = 0 } = {}) {
   if (fig.box) {
     if (S.mode === 'plot' && S.modeAuto) setMode('page');
     if (S.mode === 'page' && S.pdf) {
-      if (viewer.pageNum !== fig.box.page) await viewer.show(fig.box.page);
-      if (focus) viewer.focusBox(fig.box);   // scroll to it; zoom changes only on user zoom actions (F zooms to it)
+      // scroll to it (all pages are one column); zoom changes only on user zoom actions (F zooms to it). A click on
+      // the page (focus: false) leaves the scroll where it is.
+      if (focus) viewer.focusBox(fig.box);
     }
   }
   // whole section in the editor, scrolled to the figure environment (or the clicked line)
@@ -1781,8 +1779,7 @@ async function showOnPage(line) {
       return;
     }
     if (S.mode !== 'page') setMode('page');
-    if (viewer.pageNum !== r.page) await viewer.show(r.page);
-    viewer.flashMark(r.box);
+    viewer.flashMark({ ...r.box, page: r.page });
     const approx = S.texDirty || r.stale;
     setMsg(`${path}:${r.line} → page ${r.page}${approx ? ' · approximate (edited since the last compile)' : ''}`);
   } catch (e) { toastError(e, 'Show on page'); }

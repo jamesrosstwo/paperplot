@@ -183,6 +183,7 @@ body.resizing iframe, body.resizing canvas { pointer-events: none; }
 .stage { position: relative; flex: 1 1 auto; overflow: auto; background: var(--stage); min-height: 0; outline: none; }
 .stage.panning { cursor: grabbing; }
 .stage-inner { min-width: 100%; min-height: 100%; width: max-content; padding: 28px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 20px; }
+.pages { display: flex; flex-direction: column; align-items: center; gap: 20px; flex: none; }
 .page { position: relative; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 4px 18px rgba(0,0,0,.14); flex: none; }
 .page canvas { display: block; position: absolute; left: 0; top: 0; }
 .page-boxes { position: absolute; inset: 0; }
