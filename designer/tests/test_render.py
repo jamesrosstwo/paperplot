@@ -150,6 +150,7 @@ CHANGES = {
     "arm_order": {"fixed": ["Ours"], "rest": "as_listed"}, "level_sort": "desc", "legend_align": "right",
     "legend_box_fontsize": 8, "legend_pad": 0.5, "xtick_rotation": 30, "level_colors": {"Easy": "#BBBBBB"},
     "bar_width_pt": 4, "bar_gap_pt": 1, "hidden_arms": ["ZeroNVS"], "hidden_levels": ["Medium"], "split_groups": 2,
+    "top_line_color": "#555555",
 }
 # keys that only show together with another setting: {key: (settings that make it visible, changed value)}
 COMBOS = {

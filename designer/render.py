@@ -502,6 +502,12 @@ def _bars_finish(fig, ax, t, style, levels, warns, *, multi=False, bottom=True, 
             rule(d - 0.5, color=t.resolve(style["ci_color"], "style.ci_color"), linestyle=(0, (4, 3)),
                        linewidth=style["ci_linewidth"], zorder=0.5)
     _y_formatter(ax, style)
+    top = style.get("top_line_color")
+    if top is not None:            # the grid line at 100% (success = 1), drawn whole over the axes edge
+        gw = style.get("grid_width")
+        rule_v = ax.axvline if horiz else ax.axhline
+        rule_v(100, color=t.resolve(top, "style.top_line_color"), clip_on=False, zorder=0.6,
+               linewidth=gw if gw is not None else matplotlib.rcParams["grid.linewidth"])
     rot = 0 if horiz else style.get("xtick_rotation") or 0     # horizontal: group labels are already level
     if rot:
         for label in ax.get_xticklabels():   # angled, right end at the tick (figures/mug_conditions.py)

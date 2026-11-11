@@ -199,6 +199,8 @@ def _grouped_bars_table():
         ("divider_style", "Divider style", "dropdown", "ci", "Axes",
          dict(options=[{"value": "ci", "label": "interval ink"}, {"value": "theme", "label": "theme divider"}],
               help="interval ink: interval color/width, 4-3 dashes; theme: the theme's bars.divider (paperplot)")),
+        ("top_line_color", "Top line color", "color", None, "Axes",
+         dict(nullable=True, help="The line at 100% (success = 1); auto = like the other grid lines")),
         ("ci", "Interval", "dropdown", "wilson", "Error bars",
          dict(options=[{"value": "wilson", "label": "Wilson score"}, {"value": "bayes", "label": "Bayes (Beta posterior)"},
                        {"value": "none", "label": "none"}])),

@@ -817,3 +817,22 @@ if __name__ == "__main__":
             n += 1
             print("ok", name)
     print(f"{n} tests passed")
+
+
+def test_top_line_color():
+    """top_line_color draws the 100% line (success = 1) whole in that color, on every subplot and orientation."""
+    from matplotlib.colors import to_hex
+    for orient in ("vertical", "horizontal"):
+        s = load_seed("mug_baselines_panels")
+        s["style"].update(top_line_color="#555555", orientation=orient)
+        assert spec.validate(s) == []
+        fig, _, _ = _draw(s)
+        try:
+            axes = [ax for ax in fig.axes if ax.has_data()]
+            for ax in axes:
+                tops = [ln for ln in ax.lines if to_hex(ln.get_color()) == "#555555"]
+                assert len(tops) == 1 and not tops[0].get_clip_on()
+                xy = tops[0].get_xdata() if orient == "horizontal" else tops[0].get_ydata()
+                assert list(xy) == [100, 100]
+        finally:
+            render.plt.close(fig)
